@@ -33,3 +33,8 @@ func (r Rat) index() int {
 func (r Rat) assigned() bool {
 	return r.Room != badRat.Room && r.Time != badRat.Time
 }
+
+// Build a Rat from an index.
+func ratFromIndex(index int) (r Rat) {
+	return Rat{index / NTimes, index % NTimes}
+}

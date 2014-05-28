@@ -26,3 +26,23 @@ type Instance struct {
 	events    []event        // The events in the instance.
 	students  []map[int]bool // The attendance of the students in the instance.
 }
+
+// Create a new empty solution to the instance.
+func (inst *Instance) NewSolution() (s *Solution) {
+	s = &Solution{
+		inst,
+		make([][45]bool, inst.nStudents),
+		make([]Rat, inst.nEvents),
+		make([]int, inst.nRooms*nTimes),
+	}
+
+	for event := range s.rats {
+		s.rats[event] = badRat
+	}
+
+	for index := range s.events {
+		s.events[ratFromIndex(index)] = -1
+	}
+
+	return
+}
