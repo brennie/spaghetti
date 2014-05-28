@@ -1,5 +1,4 @@
-// spaghetti: Applying Hierarchical Parallel Genetic Algorithms to solve the
-// University Timetabling Problem.
+// hpgatt: Hierarchical Parallel Genetic Algorithm for Timetabling
 // Copyright (C) 2014  Barret Rennie
 //
 // This program is free software: you can redistribute it and/or modify
@@ -18,8 +17,16 @@
 // The timetabling package.
 package tt
 
-// The number of available time slots.
-const NTimes = 45
+// A domain is a set of rooms and times.
+type Domain map[Rat]bool
 
-// The unassigned room and time.
-var badRat = Rat{-1, -1}
+// Create a copy of a domain.
+func (domain Domain) Clone() Domain {
+	clone := make(Domain)
+
+	for key := range domain {
+		clone[key] = domain[key]
+	}
+
+	return clone
+}

@@ -18,8 +18,19 @@
 // The timetabling package.
 package tt
 
-// The number of available time slots.
-const NTimes = 45
+// An assignment of a room and time.
+type Rat struct {
+	Room int // The assigned room.
+	Time int // The assigned time.
+}
 
-// The unassigned room and time.
-var badRat = Rat{-1, -1}
+// Determine the index of the room and time in the array of all rooms and
+// times.
+func (r Rat) index() int {
+	return r.Room*NTimes + r.Time
+}
+
+// Determine if the given room and time is an assigned room and time.
+func (r Rat) assigned() bool {
+	return r.Room != badRat.Room && r.Time != badRat.Time
+}
