@@ -35,6 +35,6 @@ func (r Rat) assigned() bool {
 }
 
 // Build a Rat from an index.
-func ratFromIndex(index int) (r Rat) {
+func ratFromIndex(index int) Rat {
 	return Rat{index / NTimes, index % NTimes}
 }
