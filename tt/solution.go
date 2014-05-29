@@ -33,7 +33,7 @@ func (s *Solution) Distance() (dist int) {
 
 	for event, rat := range s.rats {
 		if !rat.assigned() {
-			dist += len(s.instance.events[event].students)
+			dist += len(s.inst.events[event].students)
 		}
 	}
 
@@ -76,11 +76,136 @@ func (s *Solution) Fitness() (fit int) {
 				fit++
 			}
 
-			if s.attendance[student][i][day*9+8] {
+			if s.attendance[student][day*9+8] {
 				fit++
 			}
 		}
 	}
 
 	return
+}
+
+// Generate the domain of one event.
+func (s *Solution) domain(eventIndex int) (domain Domain) {
+	event := &s.inst.events[eventIndex]
+
+	domain = make(Domain)
+
+	// First we determine all the valid times.
+	var times [NTimes]bool
+	for time := 0; time < NTimes; time++ {
+		times[time] = event.times[time]
+	}
+
+	// We consider all the events that must occur before this one and, for each
+	// one that is assigned, we remove the times that do not occur after the
+	// event's start time.
+	for before := range event.before {
+		rat := s.rats[before]
+
+		if rat.assigned() {
+			for time := 0; time <= rat.Time; time++ {
+				times[time] = false
+			}
+		}
+	}
+
+	// We consider all the events that must occur after this one and, for each
+	// one that is assigned, we remove the times that do not occur before the
+	// event's end time.
+	for after := range event.before {
+		rat := s.rats[after]
+
+		if rat.assigned() {
+			for time := rat.Time; time < NTimes; time++ {
+				times[time] = false
+			}
+		}
+	}
+
+	// Add to the domain the unassigned rooms and times subset of valid times.
+	for room := range event.rooms {
+		for time := 0; time < NTimes; time++ {
+			if times[time] {
+				rat := Rat{room, time}
+
+				if s.events[rat.index()] == -1 {
+					domain[rat] = true
+				}
+			}
+		}
+	}
+
+	// Remove from the domain all rats that are the result of the event's
+	// exclusion set (i.e. other events that share a student) that are
+	// already scheduled.
+	for exclude := range event.exclude {
+		rat := s.rats[exclude]
+		if rat.assigned() {
+			for room := 0; room < s.inst.nRooms; room++ {
+				// NB: delete(m, k) is a no-op if k is not in m's keys.
+				delete(domain, Rat{room, rat.Time})
+			}
+		}
+	}
+
+	return
+}
+
+// Generate the full list of domains for each event.
+func (s *Solution) Domains() (domains []Domain) {
+	domains = make([]Domain, s.inst.nEvents)
+
+	for event := range domains {
+		domains[event] = s.domain(event)
+	}
+
+	return
+}
+
+func (s *Solution) Shrink(eventIndex int, domains []Domain) {
+	if eventIndex > s.inst.nEvents || !s.rats[eventIndex].assigned() {
+		return
+	}
+
+	domains[eventIndex] = nil
+	event := &s.inst.events[eventIndex]
+	rat := s.rats[eventIndex]
+
+	// Remove the assigned room and time from all events
+	for _, domain := range domains {
+		delete(domain, rat)
+	}
+
+	// For each event that shares a student, remove all rooms and times with
+	// the same time as the recently assigned event.
+	for exclude := range event.exclude {
+		if domains[exclude] != nil {
+			for room := 0; room < s.inst.nRooms; room++ {
+				delete(domains[exclude], Rat{room, rat.Time})
+			}
+		}
+	}
+
+	// For each event that occurs before the recently assigned event, remove
+	// rooms and times that have a time that occurs during or after the event.
+	for before := range event.before {
+		if domains[before] != nil {
+			for room := 0; room < s.inst.nRooms; room++ {
+				for time := rat.Time; time < NTimes; time++ {
+					delete(domains[before], Rat{room, time})
+				}
+			}
+		}
+	}
+
+	for after := range event.after {
+		if domains[after] != nil {
+			for room := 0; room < s.inst.nRooms; room++ {
+				for time := 0; time <= rat.Time; time++ {
+					delete(domains[after], Rat{room, time})
+				}
+			}
+		}
+	}
 }
