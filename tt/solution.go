@@ -257,6 +257,6 @@ func (s *Solution) Shrink(eventIndex int, domains []Domain) {
 // Write the solution to the given writer.
 func (s *Solution) Write(w io.Writer) {
 	for _, rat := range s.rats {
-		fmt.Fprintf(w, "%d %d\n", rat.Room, rat.Time)
+		fmt.Fprintf(w, "%d %d\n", rat.Time, rat.Room)
 	}
 }

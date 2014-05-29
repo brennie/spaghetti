@@ -23,6 +23,7 @@ type Instance struct {
 	nRooms    int            // The number of rooms in the instance.
 	nFeatures int            // The number of features in the instance.
 	nStudents int            // The number of students in the instance.
+	rooms     []room         // The rooms in the instance.
 	events    []event        // The events in the instance.
 	students  []map[int]bool // The attendance of the students in the instance.
 }

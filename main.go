@@ -41,7 +41,7 @@ Options:
   --version       Show version information.
   --seed=<seed>   Specify the seed for the random number generator.`
 
-	arguments, err := docopt.Parse(usage, nil, true, "spaghetti v0.1", false)
+	arguments, err := docopt.Parse(usage, nil, true, "spaghetti v0.1.1", false)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not parse arguments: %s\n", err.Error())

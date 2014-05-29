@@ -21,6 +21,7 @@ package tt
 type event struct {
 	id       int          // The event's identifier.
 	times    [45]bool     // The times in which the event can be scheduled.
+	features map[int]bool // The features that the event requires.
 	rooms    map[int]bool // The rooms in which the event can be scheduled.
 	before   map[int]bool // The events which happen before this event.
 	after    map[int]bool // The events which happen after this event.

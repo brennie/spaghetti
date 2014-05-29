@@ -19,19 +19,19 @@ package tt
 
 // A room.
 type room struct {
-	capacity int    // The capacity of the room.
-	features []bool // The features that the room has.
+	capacity int          // The capacity of the room.
+	features map[int]bool // The features that the room has.
 }
 
 // Determine if room can host a given event, determined by the number of
 // students attending it and the features it requires.
-func (r *room) canHost(nStudents int, features []bool) bool {
-	if r.capacity < nStudents {
+func (r *room) canHost(e *event) bool {
+	if r.capacity < len(e.students) {
 		return false
 	}
 
-	for i := range r.features {
-		if features[i] && !r.features[i] {
+	for feature := range e.features {
+		if e.features[feature] && !r.features[feature] {
 			return false
 		}
 	}

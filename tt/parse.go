@@ -65,12 +65,14 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 
 	line++
 
+	inst.rooms = make([]room, inst.nRooms)
 	inst.events = make([]event, inst.nEvents)
 	inst.students = make([]map[int]bool, inst.nStudents)
 
 	for event := range inst.events {
 		inst.events[event].id = event
 		inst.events[event].rooms = make(map[int]bool)
+		inst.events[event].features = make(map[int]bool)
 		inst.events[event].before = make(map[int]bool)
 		inst.events[event].after = make(map[int]bool)
 		inst.events[event].students = make(map[int]bool)
@@ -81,22 +83,13 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 		inst.students[student] = make(map[int]bool)
 	}
 
-	// The list of rooms and event-features matrix is only used for
-	// pre-processing which events can occur in which rooms.
-	rooms := make([]room, inst.nRooms)
-	eventFeatures := make([][]bool, inst.nEvents)
-
-	for room := range rooms {
-		rooms[room].features = make([]bool, inst.nFeatures)
-	}
-
-	for event := range eventFeatures {
-		eventFeatures[event] = make([]bool, inst.nFeatures)
+	for room := range inst.rooms {
+		inst.rooms[room].features = make(map[int]bool)
 	}
 
 	// There is one line for the capacity of each room.
-	for room := range rooms {
-		if _, err = fmt.Fscanf(r, "%d\n", &rooms[room].capacity); err != nil {
+	for room := range inst.rooms {
+		if _, err = fmt.Fscanf(r, "%d\n", &inst.rooms[room].capacity); err != nil {
 			err = fmt.Errorf(formatError, line, err.Error())
 			return
 		}
@@ -110,7 +103,7 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 		for event := range inst.events {
 			var attends bool
 
-			if _, err = readBool(r); err != nil {
+			if attends, err = readBool(r); err != nil {
 				err = fmt.Errorf(formatError, line, err.Error())
 				return
 			}
@@ -126,11 +119,17 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 
 	// There is one line for each room and each feature to determine if the
 	// room has the feature.
-	for room := range rooms {
-		for feature := range rooms[room].features {
-			if rooms[room].features[feature], err = readBool(r); err != nil {
+	for room := range inst.rooms {
+		for feature := 0; feature < inst.nFeatures; feature++ {
+			var val bool
+
+			if val, err = readBool(r); err != nil {
 				err = fmt.Errorf(formatError, line, err.Error())
 				return
+			}
+
+			if val {
+				inst.rooms[room].features[feature] = true
 			}
 
 			line++
@@ -139,11 +138,17 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 
 	// There is one line for each event and each feature to determine if the
 	// event requires the feature.
-	for event := range eventFeatures {
-		for feature := range eventFeatures[event] {
-			if eventFeatures[event][feature], err = readBool(r); err != nil {
+	for event := range inst.events {
+		for feature := 0; feature < inst.nFeatures; feature++ {
+			var val bool
+
+			if val, err = readBool(r); err != nil {
 				err = fmt.Errorf(formatError, line, err.Error())
 				return
+			}
+
+			if val {
+				inst.events[event].features[feature] = true
 			}
 
 			line++
@@ -176,13 +181,13 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 
 			switch val {
 			case 1:
-				inst.events[first].before[second] = true
+				inst.events[second].before[first] = true
 
 			case 0:
 				break
 
 			case -1:
-				inst.events[first].after[second] = true
+				inst.events[second].after[first] = true
 
 			default:
 				err = fmt.Errorf(formatError, line, "expected 1, 0, or -1")
@@ -192,11 +197,11 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 		}
 	}
 
-	// Process the room-event pairs to determine which rooms can hold which
+	// Process the room-event pairs to determine which inst.rooms can hold which
 	// events.
 	for event := range inst.events {
-		for room := range rooms {
-			if rooms[room].canHost(len(inst.events[event].students), eventFeatures[event]) {
+		for room := range inst.rooms {
+			if inst.rooms[room].canHost(&inst.events[event]) {
 				inst.events[event].rooms[room] = true
 			}
 		}
