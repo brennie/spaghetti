@@ -19,10 +19,10 @@ package tt
 
 // A solution to an instance.
 type Solution struct {
-	inst         *Instance  //The problem instance
+	inst       *Instance  //The problem instance
 	attendance [][45]bool // Student attendance matrix
-	events       []int      // Map each room and time to an event.
-	rats         []Rat      // Map each event to a room and time.
+	events     []int      // Map each room and time to an event.
+	rats       []Rat      // Map each event to a room and time.
 }
 
 // Compute the distance to feasibility of a solution. The distance to
@@ -76,7 +76,7 @@ func (s *Solution) Fitness() (fit int) {
 				fit++
 			}
 
-			if s.attendance[student][i][day*9 + 8] {
+			if s.attendance[student][i][day*9+8] {
 				fit++
 			}
 		}
