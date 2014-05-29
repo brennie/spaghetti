@@ -17,7 +17,6 @@
 
 package tt
 
-// A solution to an instance.
 import (
 	"fmt"
 	"io"
@@ -25,12 +24,48 @@ import (
 
 // A solution to an instance.
 type Solution struct {
-	inst       *Instance  //The problem instance
-	attendance [][45]bool // Student attendance matrix
 	inst       *Instance  //The problem instance.
 	attendance [][45]bool // Student attendance matrix.
 	events     []int      // Map each room and time to an event.
 	rats       []Rat      // Map each event to a room and time.
+}
+
+func (s *Solution) Assign(eventIndex int, rat Rat) {
+	if eventIndex > s.inst.nEvents {
+		return
+	}
+
+	event := &s.inst.events[eventIndex]
+	ratIndex := rat.index()
+
+	// If there was an event previous scheduled in the new room and time, then
+	// we unschedule it. We also mark the time slot as free in the student
+	// attendance matrix for each student who was attending the old event.
+	if oldEvent := s.events[ratIndex]; oldEvent != -1 {
+		s.rats[oldEvent] = badRat
+		for student := range s.inst.events[oldEvent].students {
+			s.attendance[student][rat.Time] = false
+		}
+	}
+
+	// If the event was previously assigned to a room and time (oldRat), we
+	// unassign the old room and time and update the student attendance matrix
+	// to reflect the change. Otherwise we just add update the student
+	// attendance matrix.
+	if oldRat := s.rats[eventIndex]; oldRat.assigned() {
+		s.events[oldRat.index()] = -1
+		for student := range event.students {
+			s.attendance[student][rat.Time] = true
+			s.attendance[student][oldRat.Time] = false
+		}
+	} else {
+		for student := range event.students {
+			s.attendance[student][rat.Time] = true
+		}
+	}
+
+	s.rats[eventIndex] = rat
+	s.events[ratIndex] = eventIndex
 }
 
 // Compute the distance to feasibility of a solution. The distance to
