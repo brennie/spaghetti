@@ -28,6 +28,11 @@ type Instance struct {
 	students  []map[int]bool // The attendance of the students in the instance.
 }
 
+// Get the number of events in the instance.
+func (inst *Instance) NEvents() int {
+	return inst.nEvents
+}
+
 // Create a new empty solution to the instance.
 func (inst *Instance) NewSolution() (s *Solution) {
 	s = &Solution{
@@ -46,9 +51,4 @@ func (inst *Instance) NewSolution() (s *Solution) {
 	}
 
 	return
-}
-
-// Get the number of events in the instance.
-func (inst *Instance) NEvents() int {
-	return inst.nEvents
 }

@@ -224,3 +224,24 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 	newInst = inst
 	return
 }
+
+func (inst *Instance) ParseSolution(r io.Reader) (s *Solution, err error) {
+	soln := inst.NewSolution()
+	s = nil
+
+	for event := range soln.rats {
+		var rat Rat
+
+		if _, err = fmt.Fscanf(r, "%d %d\n", &rat.Time, &rat.Room); err != nil {
+			err = fmt.Errorf(formatError, event+1, err.Error())
+			return
+		}
+
+		if rat.assigned() {
+			soln.Assign(event, rat)
+		}
+	}
+
+	s = soln
+	return
+}

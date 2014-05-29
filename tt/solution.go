@@ -30,6 +30,7 @@ type Solution struct {
 	rats       []Rat      // Map each event to a room and time.
 }
 
+// Assign an event to a room and time.
 func (s *Solution) Assign(eventIndex int, rat Rat) {
 	if eventIndex > s.inst.nEvents {
 		return
@@ -77,51 +78,6 @@ func (s *Solution) Distance() (dist int) {
 	for event, rat := range s.rats {
 		if !rat.assigned() {
 			dist += len(s.inst.events[event].students)
-		}
-	}
-
-	return
-}
-
-// Compute the fitness of the solution.
-// The fitness is defined to be the sum of the following:
-//   1. for each student, the number of days s/he has only one class;
-//   2. for each student, if that student has one or more periods of more than
-//      two consecutive classes on that day then for each period the number of
-//      consecutive classes greater than two; and
-//   3. for each student, the number of days s/he has a class in the last
-//      period of the day.
-func (s *Solution) Fitness() (fit int) {
-	fit = 0
-
-	for student := range s.attendance {
-		// There are 5 days of 9 hours each.
-		for day := 0; day < 5; day++ {
-			consecutive := 0
-			count := 0
-
-			for hour := 0; hour < 9; hour++ {
-				if s.attendance[student][day*9+hour] {
-					count++
-					consecutive++
-				} else {
-					if consecutive > 2 {
-						fit += consecutive - 2
-					}
-
-					consecutive = 0
-				}
-			}
-
-			if consecutive > 2 {
-				fit += consecutive - 2
-			} else if count == 1 {
-				fit++
-			}
-
-			if s.attendance[student][day*9+8] {
-				fit++
-			}
 		}
 	}
 
@@ -201,6 +157,51 @@ func (s *Solution) Domains() (domains []Domain) {
 
 	for event := range domains {
 		domains[event] = s.domain(event)
+	}
+
+	return
+}
+
+// Compute the fitness of the solution.
+// The fitness is defined to be the sum of the following:
+//   1. for each student, the number of days s/he has only one class;
+//   2. for each student, if that student has one or more periods of more than
+//      two consecutive classes on that day then for each period the number of
+//      consecutive classes greater than two; and
+//   3. for each student, the number of days s/he has a class in the last
+//      period of the day.
+func (s *Solution) Fitness() (fit int) {
+	fit = 0
+
+	for student := range s.attendance {
+		// There are 5 days of 9 hours each.
+		for day := 0; day < 5; day++ {
+			consecutive := 0
+			count := 0
+
+			for hour := 0; hour < 9; hour++ {
+				if s.attendance[student][day*9+hour] {
+					count++
+					consecutive++
+				} else {
+					if consecutive > 2 {
+						fit += consecutive - 2
+					}
+
+					consecutive = 0
+				}
+			}
+
+			if consecutive > 2 {
+				fit += consecutive - 2
+			} else if count == 1 {
+				fit++
+			}
+
+			if s.attendance[student][day*9+8] {
+				fit++
+			}
+		}
 	}
 
 	return
