@@ -22,6 +22,8 @@ import (
 	"os"
 
 	"github.com/docopt/docopt-go"
+
+	"github.com/brennie/spaghetti/solver"
 )
 
 func main() {
@@ -39,11 +41,23 @@ Options:
   --version       Show version information.
   --seed=<seed>   Specify the seed for the random number generator.`
 
-	arguments, err := docopt.Parse(usage, nil, true, "spaghetti", false)
+	arguments, err := docopt.Parse(usage, nil, true, "spaghetti v0.1", false)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not parse arguments: %s\n", err.Error())
+		os.Exit(1)
 	}
 
-	fmt.Println(arguments)
+	if _, ok := arguments["solve"]; ok {
+		filename := arguments["<instance>"].(string)
+		seed := arguments["<seed>"]
+
+		if seed == nil {
+			solver.Solve(filename)
+		} else {
+			solver.Solve(filename, seed.(int64))
+		}
+	} else {
+		// Do the check
+	}
 }
