@@ -32,8 +32,8 @@ func (inst *Instance) NewSolution() (s *Solution) {
 	s = &Solution{
 		inst,
 		make([][45]bool, inst.nStudents),
+		make([]int, inst.nEvents*NTimes),
 		make([]Rat, inst.nEvents),
-		make([]int, inst.nRooms*nTimes),
 	}
 
 	for event := range s.rats {
@@ -41,8 +41,13 @@ func (inst *Instance) NewSolution() (s *Solution) {
 	}
 
 	for index := range s.events {
-		s.events[ratFromIndex(index)] = -1
+		s.events[index] = -1
 	}
 
 	return
+}
+
+// Get the number of events in the instance.
+func (inst *Instance) NEvents() int {
+	return inst.nEvents
 }
