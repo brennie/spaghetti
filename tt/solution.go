@@ -18,9 +18,17 @@
 package tt
 
 // A solution to an instance.
+import (
+	"fmt"
+	"io"
+)
+
+// A solution to an instance.
 type Solution struct {
 	inst       *Instance  //The problem instance
 	attendance [][45]bool // Student attendance matrix
+	inst       *Instance  //The problem instance.
+	attendance [][45]bool // Student attendance matrix.
 	events     []int      // Map each room and time to an event.
 	rats       []Rat      // Map each event to a room and time.
 }
@@ -163,6 +171,7 @@ func (s *Solution) Domains() (domains []Domain) {
 	return
 }
 
+// Shrink the domains after an assignment to the given event.
 func (s *Solution) Shrink(eventIndex int, domains []Domain) {
 	if eventIndex > s.inst.nEvents || !s.rats[eventIndex].assigned() {
 		return
@@ -207,5 +216,12 @@ func (s *Solution) Shrink(eventIndex int, domains []Domain) {
 				}
 			}
 		}
+	}
+}
+
+// Write the solution to the given writer.
+func (s *Solution) Write(w io.Writer) {
+	for _, rat := range s.rats {
+		fmt.Fprintf(w, "%d %d\n", rat.Room, rat.Time)
 	}
 }
