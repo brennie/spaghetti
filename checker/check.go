@@ -19,7 +19,8 @@
 package checker
 
 import (
-"fmt"
+	"fmt"
+	"log"
 	"os"
 
 	"github.com/brennie/spaghetti/tt"
@@ -28,27 +29,24 @@ import (
 func Check(instance, solution string) {
 	instFile, err := os.Open(instance)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not %s\n", err.Error())
-		os.Exit(1)
+		log.Fatalf("Could not %s\n", err.Error())
 	}
 	defer instFile.Close()
 
 	solnFile, err := os.Open(solution)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not %s\n", err.Error())
-		os.Exit(1)
+		log.Fatalf("Could not %s\n", err.Error())
 	}
 	defer solnFile.Close()
 
 	inst, err := tt.Parse(instFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not parse %s: %s\n", instance, err.Error())
-		os.Exit(1)
+		log.Fatalf("Could not parse %s: %s\n", instance, err.Error())
 	}
 
 	soln, err := inst.ParseSolution(solnFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not parse %s: %s\n", solution, err.Error())
+		log.Fatalf("Could not parse %s: %s\n", solution, err.Error())
 	}
 
 	fmt.Printf("Distance to feasibility: %d\nSoft Constraint Violations: %d\n",

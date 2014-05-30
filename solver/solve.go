@@ -19,7 +19,7 @@
 package solver
 
 import (
-	"fmt"
+	"log"
 	"math/rand"
 	"os"
 
@@ -35,17 +35,14 @@ func Solve(filename string, seed ...int64) {
 
 	file, err := os.Open(filename)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not %s\n", err.Error())
-		os.Exit(1)
+		log.Fatalf("Could not %s\n", err.Error())
 	}
 
 	inst, err := tt.Parse(file)
 	file.Close()
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not parse %s: %s\n", filename,
-			err.Error())
-		os.Exit(1)
+		log.Fatalf("Could not parse %s: %s\n", filename, err.Error())
 	}
 
 	soln := mcvfs(inst)

@@ -18,8 +18,7 @@
 package main
 
 import (
-	"fmt"
-	"os"
+	"log"
 
 	"github.com/docopt/docopt-go"
 
@@ -28,6 +27,8 @@ import (
 )
 
 func main() {
+	log.SetFlags(0)
+
 	usage := `spaghetti: Applying Hierarchical Parallel Genetic Algorithms to solve the
 University Timetabling Problem.
 
@@ -45,8 +46,7 @@ Options:
 	arguments, err := docopt.Parse(usage, nil, true, "spaghetti v0.2", false)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not parse arguments: %s\n", err.Error())
-		os.Exit(1)
+		log.Fatalf("Could not parse arguments: %s\n", err.Error())
 	}
 
 	if arguments["solve"].(bool) {
