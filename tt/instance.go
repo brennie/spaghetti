@@ -40,6 +40,7 @@ func (inst *Instance) NewSolution() (s *Solution) {
 		make([][45]bool, inst.nStudents),
 		make([]int, inst.nEvents*NTimes),
 		make([]Rat, inst.nEvents),
+		make([]Domain, inst.nEvents),
 	}
 
 	for event := range s.rats {
@@ -49,6 +50,8 @@ func (inst *Instance) NewSolution() (s *Solution) {
 	for index := range s.events {
 		s.events[index] = -1
 	}
+
+	s.makeDomains()
 
 	return
 }

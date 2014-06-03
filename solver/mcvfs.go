@@ -28,27 +28,26 @@ import (
 func mcvfs(inst *tt.Instance) (soln *tt.Solution) {
 	soln = inst.NewSolution()
 
-	domains := soln.Domains()
-	pq := pqueue.New(domains)
+	pq := pqueue.New(soln.Domains)
 
 	for pq.Len() > 0 {
 		mc := heap.Pop(pq).(int)
 
-		if len(domains[mc]) == 0 {
+		if len(soln.Domains[mc].Entries) == 0 {
 			continue
 		}
 
 		var minRat tt.Rat
 		var minFit int
 
-		for rat := range domains[mc] {
+		for rat := range soln.Domains[mc].Entries {
 			soln.Assign(mc, rat)
 			minRat = rat
 			minFit = soln.Fitness()
 			break
 		}
 
-		for rat := range domains[mc] {
+		for rat := range soln.Domains[mc].Entries {
 			soln.Assign(mc, rat)
 			fit := soln.Fitness()
 
@@ -59,7 +58,6 @@ func mcvfs(inst *tt.Instance) (soln *tt.Solution) {
 		}
 
 		soln.Assign(mc, minRat)
-		soln.Shrink(mc, domains)
 		pq.Update()
 	}
 

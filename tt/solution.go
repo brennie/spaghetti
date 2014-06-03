@@ -24,10 +24,20 @@ import (
 
 // A solution to an instance.
 type Solution struct {
-	inst       *Instance  //The problem instance.
+	inst       *Instance  // The problem instance.
 	attendance [][45]bool // Student attendance matrix.
 	events     []int      // Map each room and time to an event.
 	rats       []Rat      // Map each event to a room and time.
+	Domains    []Domain   // The domains.
+}
+
+// Determine if the event has been assigned to.
+func (s *Solution) Assigned(eventIndex int) bool {
+	if eventIndex > s.inst.nEvents {
+		return false
+	} else {
+		return s.rats[eventIndex].assigned()
+	}
 }
 
 // Assign an event to a room and time.
@@ -43,10 +53,7 @@ func (s *Solution) Assign(eventIndex int, rat Rat) {
 	// we unschedule it. We also mark the time slot as free in the student
 	// attendance matrix for each student who was attending the old event.
 	if oldEvent := s.events[ratIndex]; oldEvent != -1 {
-		s.rats[oldEvent] = badRat
-		for student := range s.inst.events[oldEvent].students {
-			s.attendance[student][rat.Time] = false
-		}
+		s.Unassign(oldEvent)
 	}
 
 	// If the event was previously assigned to a room and time (oldRat), we
@@ -59,6 +66,7 @@ func (s *Solution) Assign(eventIndex int, rat Rat) {
 			s.attendance[student][rat.Time] = true
 			s.attendance[student][oldRat.Time] = false
 		}
+		s.unshrink(eventIndex, oldRat)
 	} else {
 		for student := range event.students {
 			s.attendance[student][rat.Time] = true
@@ -67,6 +75,8 @@ func (s *Solution) Assign(eventIndex int, rat Rat) {
 
 	s.rats[eventIndex] = rat
 	s.events[ratIndex] = eventIndex
+
+	s.shrink(eventIndex)
 }
 
 // Compute the distance to feasibility of a solution. The distance to
@@ -85,10 +95,14 @@ func (s *Solution) Distance() (dist int) {
 }
 
 // Generate the domain of one event.
-func (s *Solution) domain(eventIndex int) (domain Domain) {
+func (s *Solution) makeDomain(eventIndex int) {
 	event := &s.inst.events[eventIndex]
+	domain := &s.Domains[eventIndex]
 
-	domain = make(Domain)
+	*domain = Domain{
+		make(map[Rat]bool),
+		make(map[Rat]map[int]bool),
+	}
 
 	// First we determine all the valid times.
 	var times [NTimes]bool
@@ -129,7 +143,7 @@ func (s *Solution) domain(eventIndex int) (domain Domain) {
 				rat := Rat{room, time}
 
 				if s.events[rat.index()] == -1 {
-					domain[rat] = true
+					domain.Entries[rat] = true
 				}
 			}
 		}
@@ -143,20 +157,22 @@ func (s *Solution) domain(eventIndex int) (domain Domain) {
 		if rat.assigned() {
 			for room := 0; room < s.inst.nRooms; room++ {
 				// NB: delete(m, k) is a no-op if k is not in m's keys.
-				delete(domain, Rat{room, rat.Time})
+				delete(domain.Entries, Rat{room, rat.Time})
 			}
 		}
+	}
+
+	for rat := range domain.Entries {
+		domain.conflicts[rat] = make(map[int]bool)
 	}
 
 	return
 }
 
 // Generate the full list of domains for each event.
-func (s *Solution) Domains() (domains []Domain) {
-	domains = make([]Domain, s.inst.nEvents)
-
-	for event := range domains {
-		domains[event] = s.domain(event)
+func (s *Solution) makeDomains() {
+	for event := range s.Domains {
+		s.makeDomain(event)
 	}
 
 	return
@@ -207,48 +223,61 @@ func (s *Solution) Fitness() (fit int) {
 	return
 }
 
-// Shrink the domains after an assignment to the given event.
-func (s *Solution) Shrink(eventIndex int, domains []Domain) {
-	if eventIndex > s.inst.nEvents || !s.rats[eventIndex].assigned() {
-		return
-	}
 
-	domains[eventIndex] = nil
+// Shrink the domains after an assignment.
+func (s *Solution) shrink(eventIndex int) {
 	event := &s.inst.events[eventIndex]
 	rat := s.rats[eventIndex]
 
-	// Remove the assigned room and time from all events
-	for _, domain := range domains {
-		delete(domain, rat)
+	// Remove the assignment from the domains of all events.
+	for event := range s.Domains {
+		if event == eventIndex {
+			continue
+		}
+
+		domain := &s.Domains[event]
+
+		if domain.inBaseDomain(rat) {
+			domain.conflicts[rat][eventIndex] = true
+			delete(domain.Entries, rat)
+		}
 	}
 
-	// For each event that shares a student, remove all rooms and times with
-	// the same time as the recently assigned event.
 	for exclude := range event.exclude {
-		if domains[exclude] != nil {
-			for room := 0; room < s.inst.nRooms; room++ {
-				delete(domains[exclude], Rat{room, rat.Time})
+		domain := &s.Domains[exclude]
+
+		for room := 0; room < s.inst.nRooms; room++ {
+			conflict := Rat{room, rat.Time}
+			if domain.inBaseDomain(conflict) {
+				domain.conflicts[conflict][eventIndex] = true
+				delete(domain.Entries, conflict)
 			}
 		}
 	}
 
-	// For each event that occurs before the recently assigned event, remove
-	// rooms and times that have a time that occurs during or after the event.
 	for before := range event.before {
-		if domains[before] != nil {
-			for room := 0; room < s.inst.nRooms; room++ {
-				for time := rat.Time; time < NTimes; time++ {
-					delete(domains[before], Rat{room, time})
+		domain := &s.Domains[before]
+
+		for room := 0; room < s.inst.nRooms; room++ {
+			for time := rat.Time; time < NTimes; time++ {
+				conflict := Rat{room, time}
+				if domain.inBaseDomain(conflict) {
+					domain.conflicts[conflict][eventIndex] = true
+					delete(domain.Entries, conflict)
 				}
 			}
 		}
 	}
 
 	for after := range event.after {
-		if domains[after] != nil {
-			for room := 0; room < s.inst.nRooms; room++ {
-				for time := 0; time <= rat.Time; time++ {
-					delete(domains[after], Rat{room, time})
+		domain := &s.Domains[after]
+
+		for room := 0; room < s.inst.nRooms; room++ {
+			for time := 0; time <= rat.Time; time++ {
+				conflict := Rat{room, time}
+				if domain.inBaseDomain(conflict) {
+					domain.conflicts[conflict][eventIndex] = true
+					delete(domain.Entries, conflict)
 				}
 			}
 		}
@@ -259,5 +288,94 @@ func (s *Solution) Shrink(eventIndex int, domains []Domain) {
 func (s *Solution) Write(w io.Writer) {
 	for _, rat := range s.rats {
 		fmt.Fprintf(w, "%d %d\n", rat.Time, rat.Room)
+	}
+}
+
+// Unassign the given event.
+func (s *Solution) Unassign(eventIndex int) {
+	if !s.Assigned(eventIndex) {
+		return
+	}
+
+	event := &s.inst.events[eventIndex]
+	rat := s.rats[eventIndex]
+
+	// Remove all entries from the attendance matrix.
+	for student := range event.students {
+		s.attendance[student][rat.Time] = false
+	}
+
+	s.rats[eventIndex] = badRat
+	s.events[rat.index()] = -1
+
+	s.unshrink(eventIndex, rat)
+}
+
+// Unshrink the domains as the result of an unassignment.
+func (s *Solution) unshrink(eventIndex int, rat Rat) {
+	event := &s.inst.events[eventIndex]
+
+	for event := range s.Domains {
+		domain := &s.Domains[event]
+
+		if domain.inBaseDomain(rat) {
+			delete(domain.conflicts[rat], eventIndex)
+
+			if !domain.hasConflict(rat) {
+				domain.Entries[rat] = true
+			}
+		}
+	}
+
+	for exclude := range event.exclude {
+		domain := &s.Domains[exclude]
+
+		for room := 0; room < s.inst.nRooms; room++ {
+			conflict := Rat{room, rat.Time}
+
+			if domain.inBaseDomain(conflict) {
+				delete(domain.conflicts[conflict], eventIndex)
+
+				if !domain.hasConflict(conflict) {
+					domain.Entries[conflict] = true
+				}
+			}
+		}
+	}
+
+	for before := range event.before {
+		domain := &s.Domains[before]
+
+		for room := 0; room < s.inst.nRooms; room++ {
+			for time := rat.Time; time < NTimes; time++ {
+				conflict := Rat{room, time}
+
+				if domain.inBaseDomain(conflict) {
+					delete(domain.conflicts[conflict], eventIndex)
+
+					if !domain.hasConflict(conflict) {
+						domain.Entries[conflict] = true
+					}
+				}
+			}
+		}
+	}
+
+	for after := range event.after {
+		domain := &s.Domains[after]
+
+		for room := 0; room < s.inst.nRooms; room++ {
+			for time := 0; time <= rat.Time; time++ {
+				conflict := Rat{room, time}
+
+				if domain.inBaseDomain(conflict) {
+					delete(domain.conflicts[conflict], eventIndex)
+
+					if !domain.hasConflict(conflict) {
+						domain.Entries[conflict] = true
+					}
+				}
+			}
+		}
 	}
 }

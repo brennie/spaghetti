@@ -16,16 +16,27 @@
 
 package tt
 
-// A domain is a set of rooms and times.
-type Domain map[Rat]bool
+// A domain is a set of rooms and times. The keys of the conflicts field are
+// valid intial entries of the domains. As assigments happen with
+// Solution.Assign, conflict entries will be added (the key to the second map
+// is the conflicting event). When len(conflicts[K]) == 0, then K will be a key
+// in Entries.
+type Domain struct {
+	Entries   map[Rat]bool         // The actual domain entries.
+	conflicts map[Rat]map[int]bool // A set of conflicting assignments.
+}
 
-// Create a copy of a domain.
-func (domain Domain) Clone() Domain {
-	clone := make(Domain)
+// Determine if the given rat is in the base domain.
+func (d *Domain) inBaseDomain(rat Rat) bool {
+	_, hasKey := d.conflicts[rat]
+	return hasKey
+}
 
-	for key := range domain {
-		clone[key] = domain[key]
+// Determine if there is a conflict with the given Rat.
+func (d *Domain) hasConflict(rat Rat) bool {
+	if d.inBaseDomain(rat) {
+		return len(d.conflicts[rat]) > 0
+	} else {
+		return false
 	}
-
-	return clone
 }
