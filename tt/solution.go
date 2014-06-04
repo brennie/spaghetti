@@ -223,7 +223,6 @@ func (s *Solution) Fitness() (fit int) {
 	return
 }
 
-
 // Shrink the domains after an assignment.
 func (s *Solution) shrink(eventIndex int) {
 	event := &s.inst.events[eventIndex]
@@ -235,50 +234,30 @@ func (s *Solution) shrink(eventIndex int) {
 			continue
 		}
 
-		domain := &s.Domains[event]
-
-		if domain.inBaseDomain(rat) {
-			domain.conflicts[rat][eventIndex] = true
-			delete(domain.Entries, rat)
-		}
+		s.Domains[event].addConflict(rat, eventIndex)
 	}
 
+	// Remove the time slot from all events that share a student.
 	for exclude := range event.exclude {
-		domain := &s.Domains[exclude]
-
 		for room := 0; room < s.inst.nRooms; room++ {
-			conflict := Rat{room, rat.Time}
-			if domain.inBaseDomain(conflict) {
-				domain.conflicts[conflict][eventIndex] = true
-				delete(domain.Entries, conflict)
-			}
+			s.Domains[exclude].addConflict(Rat{room, rat.Time}, eventIndex)
 		}
 	}
 
+	// Remove the domain entries from all events that must occur before it.
 	for before := range event.before {
-		domain := &s.Domains[before]
-
 		for room := 0; room < s.inst.nRooms; room++ {
 			for time := rat.Time; time < NTimes; time++ {
-				conflict := Rat{room, time}
-				if domain.inBaseDomain(conflict) {
-					domain.conflicts[conflict][eventIndex] = true
-					delete(domain.Entries, conflict)
-				}
+				s.Domains[before].addConflict(Rat{room, time}, eventIndex)
 			}
 		}
 	}
 
+	// Rmove the domain entries from all events that must occur after it.
 	for after := range event.after {
-		domain := &s.Domains[after]
-
 		for room := 0; room < s.inst.nRooms; room++ {
 			for time := 0; time <= rat.Time; time++ {
-				conflict := Rat{room, time}
-				if domain.inBaseDomain(conflict) {
-					domain.conflicts[conflict][eventIndex] = true
-					delete(domain.Entries, conflict)
-				}
+				s.Domains[after].addConflict(Rat{room, time}, eventIndex)
 			}
 		}
 	}
@@ -315,66 +294,32 @@ func (s *Solution) Unassign(eventIndex int) {
 func (s *Solution) unshrink(eventIndex int, rat Rat) {
 	event := &s.inst.events[eventIndex]
 
+	// Remove the conflict of the specific assignment for all other events.
 	for event := range s.Domains {
-		domain := &s.Domains[event]
-
-		if domain.inBaseDomain(rat) {
-			delete(domain.conflicts[rat], eventIndex)
-
-			if !domain.hasConflict(rat) {
-				domain.Entries[rat] = true
-			}
-		}
+		s.Domains[event].removeConflict(rat, eventIndex)
 	}
 
+	// Remove the conflict from all events which share a student.
 	for exclude := range event.exclude {
-		domain := &s.Domains[exclude]
-
 		for room := 0; room < s.inst.nRooms; room++ {
-			conflict := Rat{room, rat.Time}
-
-			if domain.inBaseDomain(conflict) {
-				delete(domain.conflicts[conflict], eventIndex)
-
-				if !domain.hasConflict(conflict) {
-					domain.Entries[conflict] = true
-				}
-			}
+			s.Domains[exclude].removeConflict(Rat{room, rat.Time}, eventIndex)
 		}
 	}
 
+	// Remove the conflict from all events which must occur before this event.
 	for before := range event.before {
-		domain := &s.Domains[before]
-
 		for room := 0; room < s.inst.nRooms; room++ {
 			for time := rat.Time; time < NTimes; time++ {
-				conflict := Rat{room, time}
-
-				if domain.inBaseDomain(conflict) {
-					delete(domain.conflicts[conflict], eventIndex)
-
-					if !domain.hasConflict(conflict) {
-						domain.Entries[conflict] = true
-					}
-				}
+				s.Domains[before].removeConflict(Rat{room, time}, eventIndex)
 			}
 		}
 	}
 
+	// Remove the conflict from all events which must occur after this event.
 	for after := range event.after {
-		domain := &s.Domains[after]
-
 		for room := 0; room < s.inst.nRooms; room++ {
 			for time := 0; time <= rat.Time; time++ {
-				conflict := Rat{room, time}
-
-				if domain.inBaseDomain(conflict) {
-					delete(domain.conflicts[conflict], eventIndex)
-
-					if !domain.hasConflict(conflict) {
-						domain.Entries[conflict] = true
-					}
-				}
+				s.Domains[after].removeConflict(Rat{room, time}, eventIndex)
 			}
 		}
 	}

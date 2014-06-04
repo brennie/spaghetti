@@ -25,6 +25,10 @@ import (
 )
 
 // Do most constrained variable first search and assign what we can.
+// NB: As it turns out, iterating through a golang map is NON-DETERMINISTIC, so
+// MCVFS will not always return the same solution (i.e. two assignments for an
+// event will have the same fitness and result in two different solutions
+// depending on which one is iterated to first).
 func mcvfs(inst *tt.Instance) (soln *tt.Solution) {
 	soln = inst.NewSolution()
 
