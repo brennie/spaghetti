@@ -1,4 +1,4 @@
-PKGS=. ./pqueue ./solver ./tt
+PKGS=. ./pqueue ./solver ./solver/hpga ./tt
 
 .PHONY: build clean format
 
