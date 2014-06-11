@@ -25,21 +25,21 @@ import "github.com/brennie/spaghetti/tt"
 type msgType int
 
 const (
-	stopMsg msgType = iota // The message telling the children to stop.
-	valueMsg               // A message containing a valuation.
-	solnMsg                // A solution message.
-	finMsg                 // The message saying the child has finished.
+	stopMsg  msgType = iota // The message telling the children to stop.
+	valueMsg                // A message containing a valuation.
+	solnMsg                 // A solution message.
+	finMsg                  // The message saying the child has finished.
 )
 
 // A message passed in the HPGA.
 type message interface {
-	Source() int // Who sent the message
+	Source() int      // Who sent the message
 	MsgType() msgType // The type of the message
 }
 
 // The base message type that all message types should extend.
 type baseMessage struct {
-	source  int // The source of the message.
+	source  int     // The source of the message.
 	msgType msgType // The type of the message.
 }
 

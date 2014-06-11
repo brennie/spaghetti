@@ -56,7 +56,7 @@ func newIsland(id, nSlaves int, toParent chan<- message) chan<- message {
 // Run the island.
 func (island *island) run() {
 	for {
-		msg := <- island.fromParent
+		msg := <-island.fromParent
 
 		switch msg.MsgType() {
 		case stopMsg:
