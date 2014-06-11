@@ -16,13 +16,15 @@
 
 package tt
 
+import "github.com/brennie/spaghetti/set"
+
 // A domain is a set of rooms and times. The keys of the conflicts field are
 // valid intial entries of the domains. As assigments happen with
 // Solution.Assign, conflict entries will be added (the key to the second map
 // is the conflicting event). When len(conflicts[K]) == 0, then K will be a key
 // in Entries.
 type Domain struct {
-	Entries   map[Rat]bool         // The actual domain entries.
+	Entries   set.Set              // The actual domain entries.
 	conflicts map[Rat]map[int]bool // A set of conflicting assignments.
 }
 
@@ -45,7 +47,7 @@ func (d *Domain) hasConflict(rat Rat) bool {
 func (domain *Domain) addConflict(rat Rat, conflict int) {
 	if domain.inBaseDomain(rat) {
 		domain.conflicts[rat][conflict] = true
-		delete(domain.Entries, rat)
+		domain.Entries.Remove(rat)
 	}
 }
 
@@ -56,7 +58,7 @@ func (domain *Domain) removeConflict(rat Rat, conflict int) {
 		delete(domain.conflicts[rat], conflict)
 
 		if !domain.hasConflict(rat) {
-			domain.Entries[rat] = true
+			domain.Entries.Insert(rat)
 		}
 	}
 }

@@ -20,6 +20,8 @@ package tt
 import (
 	"fmt"
 	"io"
+
+	"github.com/brennie/spaghetti/set"
 )
 
 // A solution to an instance.
@@ -100,7 +102,7 @@ func (s *Solution) makeDomain(eventIndex int) {
 	domain := &s.Domains[eventIndex]
 
 	*domain = Domain{
-		make(map[Rat]bool),
+		set.New(ratCmp),
 		make(map[Rat]map[int]bool),
 	}
 
@@ -143,7 +145,7 @@ func (s *Solution) makeDomain(eventIndex int) {
 				rat := Rat{room, time}
 
 				if s.events[rat.index()] == -1 {
-					domain.Entries[rat] = true
+					domain.Entries.Insert(rat)
 				}
 			}
 		}
@@ -156,13 +158,13 @@ func (s *Solution) makeDomain(eventIndex int) {
 		rat := s.rats[exclude]
 		if rat.assigned() {
 			for room := 0; room < s.inst.nRooms; room++ {
-				// NB: delete(m, k) is a no-op if k is not in m's keys.
-				delete(domain.Entries, Rat{room, rat.Time})
+				domain.Entries.Remove(Rat{room, rat.Time})
 			}
 		}
 	}
 
-	for rat := range domain.Entries {
+	for el := domain.Entries.First(); el != nil; el = el.Next() {
+		rat := el.Value().(Rat)
 		domain.conflicts[rat] = make(map[int]bool)
 	}
 

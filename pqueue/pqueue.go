@@ -60,7 +60,7 @@ func New(domains []tt.Domain) (pq *PQueue) {
 // Update the priority queue to restore the heap-ordering principle.
 func (pq *PQueue) Update() {
 	for i := range pq.domains {
-		pq.sizes[i] = len(pq.domains[i].Entries)
+		pq.sizes[i] = pq.domains[i].Entries.Size()
 	}
 
 	heap.Init(pq)

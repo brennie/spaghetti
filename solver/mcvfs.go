@@ -25,10 +25,6 @@ import (
 )
 
 // Do most constrained variable first search and assign what we can.
-// NB: As it turns out, iterating through a golang map is NON-DETERMINISTIC, so
-// MCVFS will not always return the same solution (i.e. two assignments for an
-// event will have the same fitness and result in two different solutions
-// depending on which one is iterated to first).
 func mcvfs(inst *tt.Instance) (soln *tt.Solution) {
 	soln = inst.NewSolution()
 
@@ -37,21 +33,21 @@ func mcvfs(inst *tt.Instance) (soln *tt.Solution) {
 	for pq.Len() > 0 {
 		mc := heap.Pop(pq).(int)
 
-		if len(soln.Domains[mc].Entries) == 0 {
+		if soln.Domains[mc].Entries.Size() == 0 {
 			continue
 		}
 
-		var minRat tt.Rat
-		var minFit int
+		// Our iterator through the domain entries.
+		el := soln.Domains[mc].Entries.First()
 
-		for rat := range soln.Domains[mc].Entries {
-			soln.Assign(mc, rat)
-			minRat = rat
-			minFit = soln.Fitness()
-			break
-		}
+		// Set the base line to be the assignment from the first entry.
+		minRat := el.Value().(tt.Rat)
+		soln.Assign(mc, minRat)
+		minFit := soln.Fitness()
 
-		for rat := range soln.Domains[mc].Entries {
+		// Now we find the actual minimum.
+		for el = el.Next(); el != nil; el = el.Next() {
+			rat := el.Value().(tt.Rat)
 			soln.Assign(mc, rat)
 			fit := soln.Fitness()
 
