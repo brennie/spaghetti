@@ -1,9 +1,12 @@
 PKGS=. ./pqueue ./set ./solver ./solver/hpga ./tt
 
-.PHONY: build clean format
+.PHONY: build test clean format
 
 build:
 	go build
+
+test:
+	go test ./set
 
 clean:
 	@rm -f spaghetti spaghetti.exe

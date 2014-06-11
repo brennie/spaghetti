@@ -17,6 +17,7 @@
 
 package set
 
+// Remove the specified value from the set.
 func (s *Set) Remove(value interface{}) {
 	if element := s.Find(value); element != nil {
 		// If an element to remove has two children, we replace it with the
