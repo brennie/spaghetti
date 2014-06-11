@@ -44,7 +44,7 @@ const testSize = 1000
 func TestSet(t *testing.T) {
 	slice := make([]int, testSize)
 	set := New(intCmp)
-	for i := range(slice) {
+	for i := range slice {
 		slice[i] = rand.Int()
 		set.Insert(slice[i])
 	}
@@ -56,14 +56,14 @@ func TestSet(t *testing.T) {
 	}
 
 	el := set.First()
-	for _, value := range(slice) {
+	for _, value := range slice {
 		if value != el.Value().(int) {
 			t.Error("Not in sorted order")
 		}
 		el = el.Next()
 	}
 
-	for _, value := range(slice) {
+	for _, value := range slice {
 		set.Remove(value)
 	}
 
