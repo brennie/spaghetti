@@ -17,6 +17,8 @@
 
 package hpga
 
+import "math/rand"
+
 // A slave is just a child of an island.
 type slave struct {
 	child
@@ -42,6 +44,8 @@ func newSlave(id int, toParent chan<- message) chan<- message {
 
 // Run the slave.
 func (slave *slave) run() {
+	var rng *rand.Rand
+
 	for {
 		msg := <-slave.fromParent
 
@@ -50,8 +54,15 @@ func (slave *slave) run() {
 			slave.fin()
 			return
 
+		case seedMsg:
+			rng = rand.New(rand.NewSource(msg.(seedMessage).seed))
+
 		default:
 			break
 		}
 	}
+
+	// XXX: This is here to temporarily squelch a compiler warning that rng is
+	// declared and not used.
+	rng.Int31()
 }

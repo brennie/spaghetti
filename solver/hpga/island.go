@@ -17,6 +17,8 @@
 
 package hpga
 
+import "math/rand"
+
 // An island is both a parent (slaves run under it) and a child (it runs under
 // the controller).
 type island struct {
@@ -64,9 +66,20 @@ func (island *island) run() {
 			island.toParent <- baseMessage{island.id, finMsg}
 			return
 
+		case seedMsg:
+			island.seedChildren(msg.(seedMessage).seed)
+
 		default:
 			break
 		}
 	}
 
+}
+
+// Seed the children by creating a new RNG with the given seed.
+func (island *island) seedChildren(baseSeed int64) {
+	rng := rand.New(rand.NewSource(baseSeed))
+	for child := range island.toChildren {
+		island.send(child, seedMsg, rng.Int63())
+	}
 }

@@ -51,8 +51,13 @@ func (c *child) fin() {
 }
 
 // Send a generic message to a child. The message type (msgType) determine what
-// elements of args are used. A value message requires a distance (args[0]) and
-// a fitness, while a solution message just requires a solution (args[0]).
+// elements of args are used.
+//
+// Message Type | Arguments
+// ------------------------
+//   valueMsg   | int, int
+//    solnMsg   | tt.Solution
+//    seedMsg   | int64
 func (p *parent) send(child int, msgType msgType, args ...interface{}) {
 	if child >= len(p.toChildren) {
 		log.Fatalf("invalid child: %d", child)
@@ -67,6 +72,9 @@ func (p *parent) send(child int, msgType msgType, args ...interface{}) {
 	case solnMsg:
 		p.toChildren[child] <- solnMessage{base, args[0].(tt.Solution)}
 
+	case seedMsg:
+		p.toChildren[child] <- seedMessage{base, args[0].(int64)}
+
 	default:
 		p.toChildren[child] <- base
 	}
@@ -75,8 +83,8 @@ func (p *parent) send(child int, msgType msgType, args ...interface{}) {
 // Send the stop message to all children and wait for all fo them to reply with
 // a fin message.
 func (p *parent) stop() {
-	for i := range p.toChildren {
-		p.send(i, stopMsg)
+	for child := range p.toChildren {
+		p.send(child, stopMsg)
 	}
 
 	finished := make(map[int]bool)

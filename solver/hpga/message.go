@@ -28,6 +28,7 @@ const (
 	stopMsg  msgType = iota // The message telling the children to stop.
 	valueMsg                // A message containing a valuation.
 	solnMsg                 // A solution message.
+	seedMsg                 // A message carrying a seed for the child processes.
 	finMsg                  // The message saying the child has finished.
 )
 
@@ -51,11 +52,14 @@ type valueMessage struct {
 }
 
 // A message carrying an actual solution.
-// TODO: A more lightweight solution (i.e. a slice of Rats) so that we
-// don't have to pass along domains, etc.
 type solnMessage struct {
 	baseMessage
 	soln tt.Solution
+}
+
+type seedMessage struct {
+	baseMessage
+	seed int64 // The seed for the RNG.
 }
 
 // Get the source of the message.

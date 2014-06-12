@@ -19,6 +19,7 @@ package main
 
 import (
 	"log"
+	"strconv"
 
 	"github.com/docopt/docopt-go"
 
@@ -51,12 +52,16 @@ Options:
 
 	if arguments["solve"].(bool) {
 		filename := arguments["<instance>"].(string)
-		seed := arguments["<seed>"]
+		seedStr := arguments["--seed"]
 
-		if seed == nil {
+		if seedStr == nil {
 			solver.Solve(filename)
 		} else {
-			solver.Solve(filename, seed.(int64))
+			seed, err := strconv.ParseInt(seedStr.(string), 10, 64)
+			if err != nil {
+				log.Fatalf("%s\n", err.Error())
+			}
+			solver.Solve(filename, seed)
 		}
 	} else {
 		instance := arguments["<instance>"].(string)

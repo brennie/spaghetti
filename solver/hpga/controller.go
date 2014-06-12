@@ -17,6 +17,8 @@
 
 package hpga
 
+import "math/rand"
+
 // A controller is just a parent; its children are the islands.
 type controller struct {
 	parent
@@ -43,5 +45,14 @@ func newController(nIslands, nSlaves int) *controller {
 
 // Run the controller; currently this just stops the HPGA.
 func (c *controller) run() {
+	c.seedChildren()
 	c.stop()
+}
+
+// Seed the children with the global RNG, which may or may not have been seeded
+// by the command line.
+func (controller *controller) seedChildren() {
+	for child := range controller.toChildren {
+		controller.send(child, seedMsg, rand.Int63())
+	}
 }
