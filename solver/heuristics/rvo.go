@@ -30,7 +30,7 @@ func RandomVariableOrdering(soln *tt.Solution, rng *rand.Rand) {
 		if soln.Assigned(event) || soln.Domains[event].Entries.Size() == 0 {
 			continue
 		}
-		
+
 		el := soln.Domains[event].Entries.First()
 
 		minRat := el.Value().(tt.Rat)

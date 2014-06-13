@@ -55,7 +55,7 @@ type valueMessage struct {
 type solnMessage struct {
 	baseMessage
 	value tt.Value
-	soln tt.Solution
+	soln  tt.Solution
 }
 
 // Get the source of the message.

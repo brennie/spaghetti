@@ -39,7 +39,6 @@ func newIsland(id, nSlaves int, inst *tt.Instance, seed int64, toParent chan<- m
 	fromParent := make(chan message)
 	comm := make(chan message)
 
-
 	island := &island{
 		parent{
 			comm,

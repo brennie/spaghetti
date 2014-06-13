@@ -27,7 +27,7 @@ import (
 type slave struct {
 	child
 	inst *tt.Instance
-	rng *rand.Rand
+	rng  *rand.Rand
 }
 
 // Create a new slave with the given id. The given channel is the channel the
@@ -68,5 +68,6 @@ func (slave *slave) run() {
 
 	// XXX: This is here to temporarily squelch a compiler warning that top is
 	// declared and not used.
-	if &top == nil {}
+	if &top == nil {
+	}
 }

@@ -1,4 +1,4 @@
-PKGS=. ./pqueue ./set ./solver ./solver/hpga ./tt
+PKGS=. ./pqueue ./set ./solver ./solver/heuristics ./solver/hpga ./tt
 
 .PHONY: build test clean format
 
