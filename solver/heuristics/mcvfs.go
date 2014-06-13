@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package solver
+package heuristics
 
 import (
 	"container/heap"
@@ -24,31 +24,30 @@ import (
 	"github.com/brennie/spaghetti/tt"
 )
 
-// Do most constrained variable first search and assign what we can.
-func mcvfs(inst *tt.Instance) (soln *tt.Solution) {
-	soln = inst.NewSolution()
-
+// Do most constrained variable first search to filla s much of the domains of
+// the solution as possible.
+func MostConstrainedOrdering(soln *tt.Solution) {
 	pq := pqueue.New(soln.Domains)
 
 	for pq.Len() > 0 {
-		mc := heap.Pop(pq).(int)
+		event := heap.Pop(pq).(int)
 
-		if soln.Domains[mc].Entries.Size() == 0 {
+		if soln.Assigned(event) || soln.Domains[event].Entries.Size() == 0 {
 			continue
 		}
 
 		// Our iterator through the domain entries.
-		el := soln.Domains[mc].Entries.First()
+		el := soln.Domains[event].Entries.First()
 
 		// Set the base line to be the assignment from the first entry.
 		minRat := el.Value().(tt.Rat)
-		soln.Assign(mc, minRat)
+		soln.Assign(event, minRat)
 		minFit := soln.Fitness()
 
 		// Now we find the actual minimum.
 		for el = el.Next(); el != nil; el = el.Next() {
 			rat := el.Value().(tt.Rat)
-			soln.Assign(mc, rat)
+			soln.Assign(event, rat)
 			fit := soln.Fitness()
 
 			if fit < minFit {
@@ -57,7 +56,7 @@ func mcvfs(inst *tt.Instance) (soln *tt.Solution) {
 			}
 		}
 
-		soln.Assign(mc, minRat)
+		soln.Assign(event, minRat)
 		pq.Update()
 	}
 

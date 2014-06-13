@@ -55,9 +55,8 @@ func (c *child) fin() {
 //
 // Message Type | Arguments
 // ------------------------
-//   valueMsg   | int, int
-//    solnMsg   | tt.Solution
-//    seedMsg   | int64
+//   valueMsg   | tt.Value
+//    solnMsg   | tt.Value, tt.Solution
 func (p *parent) send(child int, msgType msgType, args ...interface{}) {
 	if child >= len(p.toChildren) {
 		log.Fatalf("invalid child: %d", child)
@@ -67,13 +66,10 @@ func (p *parent) send(child int, msgType msgType, args ...interface{}) {
 
 	switch msgType {
 	case valueMsg:
-		p.toChildren[child] <- valueMessage{base, args[0].(int), args[1].(int)}
+		p.toChildren[child] <- valueMessage{base, args[0].(tt.Value)}
 
 	case solnMsg:
-		p.toChildren[child] <- solnMessage{base, args[0].(tt.Solution)}
-
-	case seedMsg:
-		p.toChildren[child] <- seedMessage{base, args[0].(int64)}
+		p.toChildren[child] <- solnMessage{base, args[0].(tt.Value), args[1].(tt.Solution)}
 
 	default:
 		p.toChildren[child] <- base
@@ -99,6 +95,6 @@ func (p *parent) stop() {
 }
 
 // Run the hpga.
-func Run(nIslands, nSlaves int) {
-	newController(nIslands, nSlaves).run()
+func Run(nIslands, nSlaves int, inst *tt.Instance) *tt.Solution {
+	return newController(nIslands, nSlaves, inst).run()
 }

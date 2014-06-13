@@ -36,7 +36,7 @@ type Solution struct {
 // Determine if the event has been assigned to.
 func (s *Solution) Assigned(eventIndex int) bool {
 	if eventIndex > s.inst.nEvents {
-		return false
+		return true
 	} else {
 		return s.rats[eventIndex].assigned()
 	}
@@ -79,6 +79,20 @@ func (s *Solution) Assign(eventIndex int, rat Rat) {
 	s.events[ratIndex] = eventIndex
 
 	s.shrink(eventIndex)
+}
+
+// Create a copy of the solution, keeping the same underlying pointer to the
+// instance.
+func (s *Solution) Clone() (clone *Solution) {
+	clone = s.inst.NewSolution()
+
+	for event, rat := range s.rats {
+		if rat.assigned() {
+			clone.Assign(event, rat)
+		}
+	}
+
+	return
 }
 
 // Compute the distance to feasibility of a solution. The distance to
@@ -263,6 +277,10 @@ func (s *Solution) shrink(eventIndex int) {
 			}
 		}
 	}
+}
+
+func (s *Solution) Value() Value {
+	return Value{s.Distance(), s.Fitness()}
 }
 
 // Write the solution to the given writer.

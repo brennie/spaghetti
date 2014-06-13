@@ -17,16 +17,22 @@
 
 package hpga
 
-import "math/rand"
+import (
+	"math/rand"
+
+	"github.com/brennie/spaghetti/solver/heuristics"
+	"github.com/brennie/spaghetti/tt"
+)
 
 // A controller is just a parent; its children are the islands.
 type controller struct {
 	parent
+	inst *tt.Instance
 }
 
 // Create a new controller. There will be nIslands islands, each with nSlaves
 // slaves.
-func newController(nIslands, nSlaves int) *controller {
+func newController(nIslands, nSlaves int, inst *tt.Instance) *controller {
 	comm := make(chan message)
 
 	controller := &controller{
@@ -34,25 +40,28 @@ func newController(nIslands, nSlaves int) *controller {
 			comm,
 			make([]chan<- message, nIslands),
 		},
+		inst,
 	}
 
 	for i := 0; i < nIslands; i++ {
-		controller.toChildren[i] = newIsland(i, nSlaves, comm)
+		controller.parent.toChildren[i] = newIsland(i, nSlaves, inst, rand.Int63(), comm)
 	}
 
 	return controller
 }
 
-// Run the controller; currently this just stops the HPGA.
-func (c *controller) run() {
-	c.seedChildren()
-	c.stop()
-}
+// Run the controller.
+func (controller *controller) run() *tt.Solution {
+	top := controller.inst.NewSolution() // The top-valued solution over the whole HPGA.
 
-// Seed the children with the global RNG, which may or may not have been seeded
-// by the command line.
-func (controller *controller) seedChildren() {
+	heuristics.MostConstrainedOrdering(top)
+	topValue := top.Value() // The value of the top-valued solution over the whole HPGA.
+
 	for child := range controller.toChildren {
-		controller.send(child, seedMsg, rand.Int63())
+		controller.send(child, valueMsg, topValue)
 	}
+
+	controller.stop()
+
+	return top
 }

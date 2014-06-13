@@ -28,7 +28,6 @@ const (
 	stopMsg  msgType = iota // The message telling the children to stop.
 	valueMsg                // A message containing a valuation.
 	solnMsg                 // A solution message.
-	seedMsg                 // A message carrying a seed for the child processes.
 	finMsg                  // The message saying the child has finished.
 )
 
@@ -47,19 +46,16 @@ type baseMessage struct {
 // A message containing a solution valuation.
 type valueMessage struct {
 	baseMessage
-	distance int // The distance to feasibility of the solution.
-	fitness  int // The fitness of the solution.
+	value tt.Value // The value of the solution.
 }
 
-// A message carrying an actual solution.
+// A message carrying an actual solution. When sent to a child, this message
+// carries the blank solution template. When sent to a parent, this contains
+// an actual solution that is better than the current global one.
 type solnMessage struct {
 	baseMessage
+	value tt.Value
 	soln tt.Solution
-}
-
-type seedMessage struct {
-	baseMessage
-	seed int64 // The seed for the RNG.
 }
 
 // Get the source of the message.

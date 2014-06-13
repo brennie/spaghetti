@@ -17,22 +17,28 @@
 
 package hpga
 
-import "math/rand"
+import (
+	"math/rand"
+
+	"github.com/brennie/spaghetti/tt"
+)
 
 // An island is both a parent (slaves run under it) and a child (it runs under
 // the controller).
 type island struct {
 	parent
 	child
+	rng *rand.Rand // The random number generator for the island.
 }
 
 // Create a new island with the given id and number of slaves. The given
 // channel is the channel the island should use to communicate with the
 // controller. The channel returned is the channel the controller should use to
 // communicate with the island.
-func newIsland(id, nSlaves int, toParent chan<- message) chan<- message {
+func newIsland(id, nSlaves int, inst *tt.Instance, seed int64, toParent chan<- message) chan<- message {
 	fromParent := make(chan message)
 	comm := make(chan message)
+
 
 	island := &island{
 		parent{
@@ -44,10 +50,11 @@ func newIsland(id, nSlaves int, toParent chan<- message) chan<- message {
 			fromParent,
 			toParent,
 		},
+		rand.New(rand.NewSource(seed)),
 	}
 
 	for i := 0; i < nSlaves; i++ {
-		island.toChildren[i] = newSlave(i, comm)
+		island.toChildren[i] = newSlave(i, inst, rand.Int63(), comm)
 	}
 
 	go island.run()
@@ -57,29 +64,24 @@ func newIsland(id, nSlaves int, toParent chan<- message) chan<- message {
 
 // Run the island.
 func (island *island) run() {
-	for {
-		msg := <-island.fromParent
-
-		switch msg.MsgType() {
-		case stopMsg:
-			island.stop()
-			island.toParent <- baseMessage{island.id, finMsg}
-			return
-
-		case seedMsg:
-			island.seedChildren(msg.(seedMessage).seed)
-
-		default:
-			break
-		}
+	top := (<-island.fromParent).(valueMessage).value
+	for child := range island.toChildren {
+		island.send(child, valueMsg, top)
 	}
 
-}
+	for {
+		select {
+		case msg := <-island.fromParent:
 
-// Seed the children by creating a new RNG with the given seed.
-func (island *island) seedChildren(baseSeed int64) {
-	rng := rand.New(rand.NewSource(baseSeed))
-	for child := range island.toChildren {
-		island.send(child, seedMsg, rng.Int63())
+			switch msg.MsgType() {
+			case stopMsg:
+				island.stop()
+				island.fin()
+				return
+			}
+
+		case <-island.fromChildren:
+			break
+		}
 	}
 }

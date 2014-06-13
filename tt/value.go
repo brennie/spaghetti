@@ -15,43 +15,24 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// The instance solver
-package solver
+package tt
 
-import (
-	"log"
-	"math/rand"
-	"os"
+// A solution valuation.
+type Value struct {
+	Distance int // The distance to feasibility.
+	Fitness  int // The solution fitness.
+}
 
-	"github.com/brennie/spaghetti/solver/hpga"
-	"github.com/brennie/spaghetti/tt"
-)
+// Compare two values using a lexicographical compare.
+func (v Value) Less(u Value) bool {
+	switch {
+	case v.Distance < u.Distance:
+		return true
 
-const (
-	nIslands         = 3 // The number of MSPGAs
-	nSlavesPerIsland = 3 // The number of slaves per MSPGA
-)
+	case v.Distance == u.Distance && v.Fitness < u.Fitness:
+		return true
 
-// Attempt to solve the instance located in file, with the optional seed for
-// random number generator.
-func Solve(filename string, seed ...int64) {
-	if len(seed) > 0 {
-		rand.Seed(seed[0])
+	default:
+		return false
 	}
-
-	file, err := os.Open(filename)
-	if err != nil {
-		log.Fatalf("Could not %s\n", err.Error())
-	}
-
-	inst, err := tt.Parse(file)
-	file.Close()
-
-	if err != nil {
-		log.Fatalf("Could not parse %s: %s\n", filename, err.Error())
-	}
-
-	soln := hpga.Run(3, 3, inst)
-
-	soln.Write(os.Stdout)
 }

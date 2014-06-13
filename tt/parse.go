@@ -225,6 +225,7 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 	return
 }
 
+// Parse a solution from the given reader.
 func (inst *Instance) ParseSolution(r io.Reader) (s *Solution, err error) {
 	soln := inst.NewSolution()
 	s = nil

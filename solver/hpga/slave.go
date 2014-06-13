@@ -17,17 +17,23 @@
 
 package hpga
 
-import "math/rand"
+import (
+	"math/rand"
+
+	"github.com/brennie/spaghetti/tt"
+)
 
 // A slave is just a child of an island.
 type slave struct {
 	child
+	inst *tt.Instance
+	rng *rand.Rand
 }
 
 // Create a new slave with the given id. The given channel is the channel the
 // island should use to communicate with the controller. The channel returned
 // is the channel the controller should use to communicate with the island.
-func newSlave(id int, toParent chan<- message) chan<- message {
+func newSlave(id int, inst *tt.Instance, seed int64, toParent chan<- message) chan<- message {
 	fromParent := make(chan message)
 	slave := &slave{
 		child{
@@ -35,6 +41,8 @@ func newSlave(id int, toParent chan<- message) chan<- message {
 			fromParent,
 			toParent,
 		},
+		inst,
+		rand.New(rand.NewSource(seed)),
 	}
 
 	go slave.run()
@@ -44,25 +52,21 @@ func newSlave(id int, toParent chan<- message) chan<- message {
 
 // Run the slave.
 func (slave *slave) run() {
-	var rng *rand.Rand
+	// 3. Receive top-valued solution
+	top := (<-slave.fromParent).(valueMessage).value
 
 	for {
-		msg := <-slave.fromParent
-
-		switch msg.MsgType() {
-		case stopMsg:
-			slave.fin()
-			return
-
-		case seedMsg:
-			rng = rand.New(rand.NewSource(msg.(seedMessage).seed))
-
-		default:
-			break
+		select {
+		case msg := <-slave.fromParent:
+			switch msg.MsgType() {
+			case stopMsg:
+				slave.fin()
+				return
+			}
 		}
 	}
 
-	// XXX: This is here to temporarily squelch a compiler warning that rng is
+	// XXX: This is here to temporarily squelch a compiler warning that top is
 	// declared and not used.
-	rng.Int31()
+	if &top == nil {}
 }
