@@ -55,6 +55,7 @@ func newController(nIslands, nSlaves int, inst *tt.Instance, verbose bool) *cont
 	return controller
 }
 
+// Optionally log a message if the verbose flag is set.
 func (controller *controller) log(format string, args ...interface{}) {
 	if controller.verbose {
 		msg := fmt.Sprintf(format, args...)

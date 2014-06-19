@@ -35,6 +35,7 @@ type slave struct {
 	verbose bool         // Determines if events should be logged.
 }
 
+// Optionally log a message if the verbose flag is set.
 func (slave *slave) log(format string, args ...interface{}) {
 	if slave.verbose {
 		msg := fmt.Sprintf(format, args...)

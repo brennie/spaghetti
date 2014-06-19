@@ -65,6 +65,7 @@ func newIsland(id, nSlaves int, inst *tt.Instance, seed int64, toParent chan<- m
 	return fromParent
 }
 
+// Optionally log a message if the verbose flag is set.
 func (island *island) log(format string, args ...interface{}) {
 	if island.verbose {
 		msg := fmt.Sprintf(format, args...)
