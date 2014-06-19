@@ -20,6 +20,9 @@ package hpga
 import (
 	"math/rand"
 
+	"fmt"
+
+	"github.com/brennie/spaghetti/solver/hpga/population"
 	"github.com/brennie/spaghetti/tt"
 )
 
@@ -52,13 +55,25 @@ func newSlave(id int, inst *tt.Instance, seed int64, toParent chan<- message) ch
 
 // Run the slave.
 func (slave *slave) run() {
-	// 3. Receive top-valued solution
+	// Receive the top-valued solution message from the island.
 	top := (<-slave.fromParent).(valueMessage).value
+
+	pop := population.New(slave.rng, slave.inst)
+
+	if _, value := pop.Best(); top.Less(value) {
+		fmt.Println("Found a better solution")
+	}
 
 	for {
 		select {
 		case msg := <-slave.fromParent:
 			switch msg.MsgType() {
+
+			// Update the globally known top value.
+			case valueMsg:
+				top = msg.(valueMessage).value
+
+			// Stop the slave.
 			case stopMsg:
 				slave.fin()
 				return
@@ -68,6 +83,6 @@ func (slave *slave) run() {
 
 	// XXX: This is here to temporarily squelch a compiler warning that top is
 	// declared and not used.
-	if &top == nil {
+	if &top == nil || &pop == nil {
 	}
 }

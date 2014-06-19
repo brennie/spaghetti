@@ -150,6 +150,12 @@ func (p *Population) Insert(soln *tt.Solution) {
 	heap.Push(p.heap, individual{soln, soln.Value()})
 }
 
+// Determine the best member of the population. A solution picked this way must
+// not be modified.
+func (p *Population) Best() (*tt.Solution, tt.Value) {
+	return p.heap[0].soln, p.heap[0].value
+}
+
 // Pick a member randomly using the given random number generator. A solution
 // picked this way must not be modified. To pick a member randomly and modify
 // it, use RemoveOne followed by Insert.

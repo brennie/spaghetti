@@ -19,6 +19,7 @@ package main
 
 import (
 	"log"
+	"runtime"
 	"strconv"
 
 	"github.com/docopt/docopt-go"
@@ -28,6 +29,7 @@ import (
 )
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	log.SetFlags(0)
 
 	usage := `spaghetti: Applying Hierarchical Parallel Genetic Algorithms to solve the

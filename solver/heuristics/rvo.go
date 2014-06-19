@@ -24,30 +24,23 @@ import (
 )
 
 // Use random variable ordering to fill as much of the domains of the solution
-// as possible.
+// as possible. We do not try to find the best element in the domain to assign;
+// we only try to fill up the domain as fast as possible.
 func RandomVariableOrdering(soln *tt.Solution, rng *rand.Rand) {
 	for _, event := range rng.Perm(len(soln.Domains)) {
-		if soln.Assigned(event) || soln.Domains[event].Entries.Size() == 0 {
+		domain := &soln.Domains[event].Entries
+
+		if soln.Assigned(event) || domain.Size() == 0 {
 			continue
 		}
 
-		el := soln.Domains[event].Entries.First()
+		picked := rng.Intn(domain.Size())
+		el := domain.First()
 
-		minRat := el.Value().(tt.Rat)
-		soln.Assign(event, minRat)
-		minFit := soln.Fitness()
-
-		for el = el.Next(); el != nil; el = el.Next() {
-			rat := el.Value().(tt.Rat)
-			soln.Assign(event, rat)
-			fit := soln.Fitness()
-
-			if fit < minFit {
-				minFit = fit
-				minRat = rat
-			}
+		for i := 0; i < picked; i++ {
+			el = el.Next()
 		}
 
-		soln.Assign(event, minRat)
+		soln.Assign(event, el.Value().(tt.Rat))
 	}
 }
