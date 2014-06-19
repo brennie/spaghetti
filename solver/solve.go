@@ -19,26 +19,16 @@
 package solver
 
 import (
+	"io"
 	"log"
-	"math/rand"
 	"os"
 
 	"github.com/brennie/spaghetti/solver/hpga"
 	"github.com/brennie/spaghetti/tt"
 )
 
-const (
-	nIslands         = 3 // The number of MSPGAs
-	nSlavesPerIsland = 3 // The number of slaves per MSPGA
-)
-
-// Attempt to solve the instance located in file, with the optional seed for
-// random number generator.
-func Solve(filename string, seed ...int64) {
-	if len(seed) > 0 {
-		rand.Seed(seed[0])
-	}
-
+// Attempt to solve the instance located in the given filename.
+func Solve(filename string, output io.Writer, islands, slaves int) {
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatalf("Could not %s\n", err.Error())
@@ -53,5 +43,5 @@ func Solve(filename string, seed ...int64) {
 
 	soln := hpga.Run(3, 3, inst)
 
-	soln.Write(os.Stdout)
+	soln.Write(output)
 }

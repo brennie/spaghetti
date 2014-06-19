@@ -19,7 +19,10 @@ package main
 
 import (
 	"log"
+	"math/rand"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"strconv"
 
 	"github.com/docopt/docopt-go"
@@ -29,22 +32,26 @@ import (
 )
 
 func main() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
 	log.SetFlags(0)
 
 	usage := `spaghetti: Applying Hierarchical Parallel Genetic Algorithms to solve the
 University Timetabling Problem.
 
 Usage:
-  spaghetti solve [--seed=<seed>] <instance>
+  spaghetti solve [options] <instance>
   spaghetti check <instance> <solution>
   spaghetti -h | --help
   spaghetti --version
 
 Options:
-  -h --help       Show this screen.
-  --version       Show version information.
-  --seed=<seed>   Specify the seed for the random number generator.`
+  -h --help         Show this information.
+  --islands <n>     Set the number of islands [default: 3].
+  --maxprocs <n>    Set GOMAXPROCS to the given value instead of the number of CPUs.
+  --profile <file>  Collect profiling information in the given file. 
+  --seed <seed>     Specify the seed for the random number generator.
+  --slaves <n>      Set the number of slaves per island [default: 3].
+  --version         Show version information.
+  --output <file>   Write the solution to the given file instead of stdout.`
 
 	arguments, err := docopt.Parse(usage, nil, true, "spaghetti v0.2", false)
 
@@ -54,17 +61,67 @@ Options:
 
 	if arguments["solve"].(bool) {
 		filename := arguments["<instance>"].(string)
-		seedStr := arguments["--seed"]
 
-		if seedStr == nil {
-			solver.Solve(filename)
-		} else {
-			seed, err := strconv.ParseInt(seedStr.(string), 10, 64)
-			if err != nil {
-				log.Fatalf("%s\n", err.Error())
-			}
-			solver.Solve(filename, seed)
+		islands, err := strconv.Atoi(arguments["--islands"].(string))
+
+		if err != nil {
+			log.Fatalf("Invalid value for --islands: %s\n", err)
 		}
+
+		slaves, err := strconv.Atoi(arguments["--slaves"].(string))
+
+		if err != nil {
+			log.Fatalf("Invalid value for --slaves: %s\n", err)
+		}
+
+		if arguments["--maxprocs"] != nil {
+			maxprocs, err := strconv.Atoi(arguments["--maxprocs"].(string))
+
+			if err != nil {
+				log.Fatalf("Invalid value for --maxprocs: %s\n", err)
+			} else if maxprocs > runtime.NumCPU() {
+				runtime.GOMAXPROCS(runtime.NumCPU())
+			} else if maxprocs > 0 {
+				runtime.GOMAXPROCS(maxprocs)
+			}
+		} else {
+			runtime.GOMAXPROCS(runtime.NumCPU())
+		}
+
+		output := os.Stdout
+		if arguments["--output"] != nil {
+			output, err := os.Create(arguments["--output"].(string))
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			defer output.Close()
+		}
+
+		if arguments["--profile"] != nil {
+			profile, err := os.Create(arguments["--profile"].(string))
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			pprof.StartCPUProfile(profile)
+			defer profile.Close()
+			defer pprof.StopCPUProfile()
+		}
+
+		if arguments["--seed"] != nil {
+			seed, err := strconv.ParseInt(arguments["--seed"].(string), 10, 64)
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			rand.Seed(seed)
+		}
+
+		solver.Solve(filename, output, islands, slaves)
 	} else {
 		instance := arguments["<instance>"].(string)
 		solution := arguments["<solution>"].(string)
