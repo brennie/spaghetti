@@ -66,12 +66,16 @@ Options:
 
 		if err != nil {
 			log.Fatalf("Invalid value for --islands: %s\n", err)
+		} else if islands < 2 {
+			log.Fatal("Invalid value for --islands: value must be at least 2")
 		}
 
 		slaves, err := strconv.Atoi(arguments["--slaves"].(string))
 
 		if err != nil {
 			log.Fatalf("Invalid value for --slaves: %s\n", err)
+		} else if slaves < 2 {
+			log.Fatal("Invalid value for --slaves: value must be at least 2")
 		}
 
 		if arguments["--maxprocs"] != nil {
