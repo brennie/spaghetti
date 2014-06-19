@@ -53,7 +53,7 @@ Options:
   --version         Show version information.
   --output <file>   Write the solution to the given file instead of stdout.`
 
-	arguments, err := docopt.Parse(usage, nil, true, "spaghetti v0.2", false)
+	arguments, err := docopt.Parse(usage, nil, true, "spaghetti v0.3", false)
 
 	if err != nil {
 		log.Fatalf("Could not parse arguments: %s\n", err.Error())
