@@ -65,7 +65,7 @@ func newIsland(id, nSlaves int, inst *tt.Instance, seed int64, toParent chan<- m
 func (island *island) run() {
 	top := (<-island.fromParent).(valueMessage).value
 	for child := range island.toChildren {
-		island.send(child, valueMsg, top)
+		island.sendToChild(child, valueMsg, top)
 	}
 
 	for {

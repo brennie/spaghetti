@@ -58,7 +58,7 @@ func (controller *controller) run() *tt.Solution {
 	topValue := top.Value() // The value of the top-valued solution over the whole HPGA.
 
 	for child := range controller.toChildren {
-		controller.send(child, valueMsg, topValue)
+		controller.sendToChild(child, valueMsg, topValue)
 	}
 
 	controller.stop()

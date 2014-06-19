@@ -50,29 +50,40 @@ func (c *child) fin() {
 	c.toParent <- baseMessage{c.id, finMsg}
 }
 
-// Send a generic message to a child. The message type (msgType) determine what
-// elements of args are used.
+// Send a message from a parent to one of its children. See the chanSend
+// for more details.
+func (p *parent) sendToChild(child int, msgType msgType, args ...interface{}) {
+	if child >= len(p.toChildren) {
+		log.Fatalf("invalid child: %d", child)
+	}
+
+	chanSend(p.toChildren[child], parentID, msgType, args...)
+}
+
+// Send a message from the child to its parent. See the chanSend function for
+// more details.
+func (c *child) sendToParent(msgType msgType, args ...interface{}) {
+	chanSend(c.toParent, c.id, msgType, args...)
+}
+
+// Send a generic message along the channel.
 //
 // Message Type | Arguments
 // ------------------------
 //   valueMsg   | tt.Value
 //    solnMsg   | tt.Value, tt.Solution
-func (p *parent) send(child int, msgType msgType, args ...interface{}) {
-	if child >= len(p.toChildren) {
-		log.Fatalf("invalid child: %d", child)
-	}
-
-	base := baseMessage{parentID, msgType}
+func chanSend(c chan<- message, source int, msgType msgType, args ...interface{}) {
+	base := baseMessage{source, msgType}
 
 	switch msgType {
 	case valueMsg:
-		p.toChildren[child] <- valueMessage{base, args[0].(tt.Value)}
+		c <- valueMessage{base, args[0].(tt.Value)}
 
 	case solnMsg:
-		p.toChildren[child] <- solnMessage{base, args[0].(tt.Value), args[1].(tt.Solution)}
+		c <- solnMessage{base, args[0].(tt.Value), args[1].(tt.Solution)}
 
 	default:
-		p.toChildren[child] <- base
+		c <- base
 	}
 }
 
@@ -80,7 +91,7 @@ func (p *parent) send(child int, msgType msgType, args ...interface{}) {
 // a fin message.
 func (p *parent) stop() {
 	for child := range p.toChildren {
-		p.send(child, stopMsg)
+		p.sendToChild(child, stopMsg)
 	}
 
 	finished := make(map[int]bool)

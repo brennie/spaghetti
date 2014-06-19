@@ -20,8 +20,6 @@ package hpga
 import (
 	"math/rand"
 
-	"fmt"
-
 	"github.com/brennie/spaghetti/solver/hpga/population"
 	"github.com/brennie/spaghetti/tt"
 )
@@ -59,10 +57,6 @@ func (slave *slave) run() {
 	top := (<-slave.fromParent).(valueMessage).value
 
 	pop := population.New(slave.rng, slave.inst)
-
-	if _, value := pop.Best(); top.Less(value) {
-		fmt.Println("Found a better solution")
-	}
 
 	for {
 		select {
