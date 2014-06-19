@@ -19,6 +19,7 @@ package hpga
 
 import (
 	"math/rand"
+	"time"
 
 	"github.com/brennie/spaghetti/solver/heuristics"
 	"github.com/brennie/spaghetti/tt"
@@ -61,7 +62,31 @@ func (controller *controller) run() *tt.Solution {
 		controller.sendToChild(child, valueMsg, topValue)
 	}
 
-	controller.stop()
+msgLoop:
+	for {
+		timeout := time.After(2 * time.Minute)
+		select {
+		case msg := <-controller.fromChildren:
+			switch msg.MsgType() {
+			case solnMsg:
+				best, value := msg.(solnMessage).soln, msg.(solnMessage).value
+
+				if value.Less(topValue) {
+					topValue = value
+					top = &best
+
+					for child := range controller.toChildren {
+						if child != msg.Source() {
+							controller.sendToChild(child, valueMsg, topValue)
+						}
+					}
+				}
+			}
+		case <-timeout:
+			controller.stop()
+			break msgLoop
+		}
+	}
 
 	return top
 }

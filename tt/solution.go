@@ -20,6 +20,7 @@ package tt
 import (
 	"fmt"
 	"io"
+	"log"
 
 	"github.com/brennie/spaghetti/set"
 )
@@ -110,6 +111,51 @@ func (s *Solution) Distance() (dist int) {
 	return
 }
 
+// Compute the fitness of the solution.
+// The fitness is defined to be the sum of the following:
+//   1. for each student, the number of days s/he has only one class;
+//   2. for each student, if that student has one or more periods of more than
+//      two consecutive classes on that day then for each period the number of
+//      consecutive classes greater than two; and
+//   3. for each student, the number of days s/he has a class in the last
+//      period of the day.
+func (s *Solution) Fitness() (fit int) {
+	fit = 0
+
+	for student := range s.attendance {
+		// There are 5 days of 9 hours each.
+		for day := 0; day < 5; day++ {
+			consecutive := 0
+			count := 0
+
+			for hour := 0; hour < 9; hour++ {
+				if s.attendance[student][day*9+hour] {
+					count++
+					consecutive++
+				} else {
+					if consecutive > 2 {
+						fit += consecutive - 2
+					}
+
+					consecutive = 0
+				}
+			}
+
+			if consecutive > 2 {
+				fit += consecutive - 2
+			} else if count == 1 {
+				fit++
+			}
+
+			if s.attendance[student][day*9+8] {
+				fit++
+			}
+		}
+	}
+
+	return
+}
+
 // Generate the domain of one event.
 func (s *Solution) makeDomain(eventIndex int) {
 	event := &s.inst.events[eventIndex]
@@ -194,47 +240,37 @@ func (s *Solution) makeDomains() {
 	return
 }
 
-// Compute the fitness of the solution.
-// The fitness is defined to be the sum of the following:
-//   1. for each student, the number of days s/he has only one class;
-//   2. for each student, if that student has one or more periods of more than
-//      two consecutive classes on that day then for each period the number of
-//      consecutive classes greater than two; and
-//   3. for each student, the number of days s/he has a class in the last
-//      period of the day.
-func (s *Solution) Fitness() (fit int) {
-	fit = 0
-
-	for student := range s.attendance {
-		// There are 5 days of 9 hours each.
-		for day := 0; day < 5; day++ {
-			consecutive := 0
-			count := 0
-
-			for hour := 0; hour < 9; hour++ {
-				if s.attendance[student][day*9+hour] {
-					count++
-					consecutive++
-				} else {
-					if consecutive > 2 {
-						fit += consecutive - 2
-					}
-
-					consecutive = 0
-				}
-			}
-
-			if consecutive > 2 {
-				fit += consecutive - 2
-			} else if count == 1 {
-				fit++
-			}
-
-			if s.attendance[student][day*9+8] {
-				fit++
-			}
-		}
+// Assign and unassign without shrinking the domains.
+// QuickAssign is meant to go as fast as possible. If invalid parameters are
+// passed, it will cause spaghetti to exit. Only use this with correct domain
+// entries as it does not fail gracefully.
+func (s *Solution) QuickAssign(eventIndex int, rat Rat) (fitness int) {
+	if eventIndex > s.inst.nEvents {
+		log.Fatalf("Solution.QuickAssign: Invalid eventIndex `%d'\n", eventIndex)
 	}
+
+	event := &s.inst.events[eventIndex]
+	ratIndex := rat.index()
+
+	if s.events[ratIndex] != -1 || s.rats[eventIndex].assigned() {
+		log.Fatal("Solution.QuickAssign: Assigned eventIndex or Rat")
+	}
+
+	s.rats[eventIndex] = rat
+	s.events[ratIndex] = eventIndex
+
+	for student := range event.students {
+		s.attendance[student][rat.Time] = true
+	}
+
+	fitness = s.Fitness()
+
+	for student := range event.students {
+		s.attendance[student][rat.Time] = false
+	}
+
+	s.events[ratIndex] = -1
+	s.rats[eventIndex] = badRat
 
 	return
 }
@@ -279,6 +315,7 @@ func (s *Solution) shrink(eventIndex int) {
 	}
 }
 
+// Determine the value of the solution (ie. the distance and fitness).
 func (s *Solution) Value() Value {
 	return Value{s.Distance(), s.Fitness()}
 }

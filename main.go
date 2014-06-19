@@ -90,7 +90,7 @@ Options:
 
 		output := os.Stdout
 		if arguments["--output"] != nil {
-			output, err := os.Create(arguments["--output"].(string))
+			output, err = os.Create(arguments["--output"].(string))
 
 			if err != nil {
 				log.Fatal(err)

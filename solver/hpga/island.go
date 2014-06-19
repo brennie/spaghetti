@@ -63,9 +63,10 @@ func newIsland(id, nSlaves int, inst *tt.Instance, seed int64, toParent chan<- m
 
 // Run the island.
 func (island *island) run() {
-	top := (<-island.fromParent).(valueMessage).value
+	topValue := (<-island.fromParent).(valueMessage).value
+
 	for child := range island.toChildren {
-		island.sendToChild(child, valueMsg, top)
+		island.sendToChild(child, valueMsg, topValue)
 	}
 
 	for {
@@ -79,8 +80,22 @@ func (island *island) run() {
 				return
 			}
 
-		case <-island.fromChildren:
-			break
+		case msg := <-island.fromChildren:
+			switch msg.MsgType() {
+			case solnMsg:
+				best, value := msg.(solnMessage).soln, msg.(solnMessage).value
+
+				if value.Less(topValue) {
+					island.sendToParent(solnMsg, best, value)
+					topValue = value
+
+					for child := range island.toChildren {
+						if child != msg.Source() {
+							island.sendToChild(child, valueMsg, topValue)
+						}
+					}
+				}
+			}
 		}
 	}
 }

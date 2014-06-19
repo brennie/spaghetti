@@ -53,21 +53,27 @@ func newSlave(id int, inst *tt.Instance, seed int64, toParent chan<- message) ch
 
 // Run the slave.
 func (slave *slave) run() {
-	// Receive the top-valued solution message from the island.
-	top := (<-slave.fromParent).(valueMessage).value
+	// Receive the topValue-valued solution message from the island.
+	topValue := (<-slave.fromParent).(valueMessage).value
 
 	pop := population.New(slave.rng, slave.inst)
+	if best, value := pop.Best(); value.Less(topValue) {
+		topValue = value
+		slave.sendToParent(solnMsg, *best.Clone(), value)
+	}
 
 	for {
 		select {
 		case msg := <-slave.fromParent:
 			switch msg.MsgType() {
 
-			// Update the globally known top value.
+			// Update the globally known topValue value.
 			case valueMsg:
-				top = msg.(valueMessage).value
+				if value := msg.(valueMessage).value; value.Less(topValue) {
+					topValue = value
+				}
 
-			// Stop the slave.
+			// StopValue the slave.
 			case stopMsg:
 				slave.fin()
 				return
@@ -75,8 +81,8 @@ func (slave *slave) run() {
 		}
 	}
 
-	// XXX: This is here to temporarily squelch a compiler warning that top is
+	// XXX: This is here to temporarily squelch a compiler warning that topValue is
 	// declared and not used.
-	if &top == nil || &pop == nil {
+	if &topValue == nil || &pop == nil {
 	}
 }

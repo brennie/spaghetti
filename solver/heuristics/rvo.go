@@ -34,13 +34,18 @@ func RandomVariableOrdering(soln *tt.Solution, rng *rand.Rand) {
 			continue
 		}
 
-		picked := rng.Intn(domain.Size())
 		el := domain.First()
+		minRat := el.Value().(tt.Rat)
+		minFit := soln.QuickAssign(event, minRat)
 
-		for i := 0; i < picked; i++ {
-			el = el.Next()
+		for el = el.Next(); el != nil; el = el.Next() {
+			rat := el.Value().(tt.Rat)
+			if fit := soln.QuickAssign(event, rat); fit < minFit {
+				minFit = fit
+				minRat = rat
+			}
 		}
 
-		soln.Assign(event, el.Value().(tt.Rat))
+		soln.Assign(event, minRat)
 	}
 }

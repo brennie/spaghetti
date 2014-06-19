@@ -41,16 +41,12 @@ func MostConstrainedOrdering(soln *tt.Solution) {
 
 		// Set the base line to be the assignment from the first entry.
 		minRat := el.Value().(tt.Rat)
-		soln.Assign(event, minRat)
-		minFit := soln.Fitness()
+		minFit := soln.QuickAssign(event, minRat)
 
 		// Now we find the actual minimum.
 		for el = el.Next(); el != nil; el = el.Next() {
 			rat := el.Value().(tt.Rat)
-			soln.Assign(event, rat)
-			fit := soln.Fitness()
-
-			if fit < minFit {
+			if fit := soln.QuickAssign(event, rat); fit < minFit {
 				minFit = fit
 				minRat = rat
 			}
