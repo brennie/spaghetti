@@ -18,6 +18,8 @@
 package hpga
 
 import (
+	"fmt"
+	"log"
 	"math/rand"
 	"time"
 
@@ -28,12 +30,13 @@ import (
 // A controller is just a parent; its children are the islands.
 type controller struct {
 	parent
-	inst *tt.Instance
+	inst    *tt.Instance // The timetabling instance
+	verbose bool         // Determines if events should be logged.
 }
 
 // Create a new controller. There will be nIslands islands, each with nSlaves
 // slaves.
-func newController(nIslands, nSlaves int, inst *tt.Instance) *controller {
+func newController(nIslands, nSlaves int, inst *tt.Instance, verbose bool) *controller {
 	comm := make(chan message)
 
 	controller := &controller{
@@ -42,13 +45,21 @@ func newController(nIslands, nSlaves int, inst *tt.Instance) *controller {
 			make([]chan<- message, nIslands),
 		},
 		inst,
+		verbose,
 	}
 
 	for i := 0; i < nIslands; i++ {
-		controller.parent.toChildren[i] = newIsland(i, nSlaves, inst, rand.Int63(), comm)
+		controller.parent.toChildren[i] = newIsland(i, nSlaves, inst, rand.Int63(), comm, verbose)
 	}
 
 	return controller
+}
+
+func (controller *controller) log(format string, args ...interface{}) {
+	if controller.verbose {
+		msg := fmt.Sprintf(format, args...)
+		log.Printf("controller: %s\n", msg)
+	}
 }
 
 // Run the controller.
@@ -72,6 +83,7 @@ msgLoop:
 				best, value := msg.(solnMessage).soln, msg.(solnMessage).value
 
 				if value.Less(topValue) {
+					controller.log("received solnMsg: value was better")
 					topValue = value
 					top = &best
 
@@ -80,10 +92,14 @@ msgLoop:
 							controller.sendToChild(child, valueMsg, topValue)
 						}
 					}
+				} else {
+					controller.log("received solnMsg: value was worse")
 				}
 			}
 		case <-timeout:
+			controller.log("timeout: sending stopMsg to all islands")
 			controller.stop()
+			controller.log("received finMsg from all islands: exiting")
 			break msgLoop
 		}
 	}

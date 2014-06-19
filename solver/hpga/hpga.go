@@ -106,6 +106,6 @@ func (p *parent) stop() {
 }
 
 // Run the hpga.
-func Run(nIslands, nSlaves int, inst *tt.Instance) *tt.Solution {
-	return newController(nIslands, nSlaves, inst).run()
+func Run(nIslands, nSlaves int, inst *tt.Instance, verbose bool) *tt.Solution {
+	return newController(nIslands, nSlaves, inst, verbose).run()
 }

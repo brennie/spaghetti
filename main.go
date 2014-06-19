@@ -50,6 +50,7 @@ Options:
   --profile <file>  Collect profiling information in the given file. 
   --seed <seed>     Specify the seed for the random number generator.
   --slaves <n>      Set the number of slaves per island [default: 3].
+  --verbose         Turn on event logging.
   --version         Show version information.
   --output <file>   Write the solution to the given file instead of stdout.`
 
@@ -71,6 +72,8 @@ Options:
 		}
 
 		slaves, err := strconv.Atoi(arguments["--slaves"].(string))
+
+		verbose := arguments["--verbose"].(bool)
 
 		if err != nil {
 			log.Fatalf("Invalid value for --slaves: %s\n", err)
@@ -125,7 +128,7 @@ Options:
 			rand.Seed(seed)
 		}
 
-		solver.Solve(filename, output, islands, slaves)
+		solver.Solve(filename, output, islands, slaves, verbose)
 	} else {
 		instance := arguments["<instance>"].(string)
 		solution := arguments["<solution>"].(string)

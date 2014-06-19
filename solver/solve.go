@@ -28,20 +28,20 @@ import (
 )
 
 // Attempt to solve the instance located in the given filename.
-func Solve(filename string, output io.Writer, islands, slaves int) {
+func Solve(filename string, output io.Writer, islands, slaves int, verbose bool) {
 	file, err := os.Open(filename)
 	if err != nil {
-		log.Fatalf("Could not %s\n", err.Error())
+		log.Fatalf("Could not %s\n", err)
 	}
 
 	inst, err := tt.Parse(file)
 	file.Close()
 
 	if err != nil {
-		log.Fatalf("Could not parse %s: %s\n", filename, err.Error())
+		log.Fatalf("Could not parse %s: %s\n", filename, err)
 	}
 
-	soln := hpga.Run(3, 3, inst)
+	soln := hpga.Run(3, 3, inst, verbose)
 
 	soln.Write(output)
 }

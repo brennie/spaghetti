@@ -18,6 +18,8 @@
 package hpga
 
 import (
+	"fmt"
+	"log"
 	"math/rand"
 
 	"github.com/brennie/spaghetti/solver/hpga/population"
@@ -27,14 +29,23 @@ import (
 // A slave is just a child of an island.
 type slave struct {
 	child
-	inst *tt.Instance
-	rng  *rand.Rand
+	island  int          // The island the slave belongs to
+	inst    *tt.Instance // The timetabling instance.
+	rng     *rand.Rand   // The random number generator for the slave.
+	verbose bool         // Determines if events should be logged.
+}
+
+func (slave *slave) log(format string, args ...interface{}) {
+	if slave.verbose {
+		msg := fmt.Sprintf(format, args...)
+		log.Printf("slave(%d.%d): %s\n", slave.island, slave.id, msg)
+	}
 }
 
 // Create a new slave with the given id. The given channel is the channel the
 // island should use to communicate with the controller. The channel returned
 // is the channel the controller should use to communicate with the island.
-func newSlave(id int, inst *tt.Instance, seed int64, toParent chan<- message) chan<- message {
+func newSlave(island int, id int, inst *tt.Instance, seed int64, toParent chan<- message, verbose bool) chan<- message {
 	fromParent := make(chan message)
 	slave := &slave{
 		child{
@@ -42,8 +53,10 @@ func newSlave(id int, inst *tt.Instance, seed int64, toParent chan<- message) ch
 			fromParent,
 			toParent,
 		},
+		island,
 		inst,
 		rand.New(rand.NewSource(seed)),
+		verbose,
 	}
 
 	go slave.run()
@@ -60,6 +73,7 @@ func (slave *slave) run() {
 	if best, value := pop.Best(); value.Less(topValue) {
 		topValue = value
 		slave.sendToParent(solnMsg, *best.Clone(), value)
+		slave.log("found new best-valued solution: (%d,%d)", value.Distance, value.Fitness)
 	}
 
 	for {
@@ -71,18 +85,17 @@ func (slave *slave) run() {
 			case valueMsg:
 				if value := msg.(valueMessage).value; value.Less(topValue) {
 					topValue = value
+					slave.log("received valueMsg: value was better")
+				} else {
+					slave.log("received valueMsg: value was worse ")
 				}
 
 			// StopValue the slave.
 			case stopMsg:
+				slave.log("received stopMsg: exiting")
 				slave.fin()
 				return
 			}
 		}
-	}
-
-	// XXX: This is here to temporarily squelch a compiler warning that topValue is
-	// declared and not used.
-	if &topValue == nil || &pop == nil {
 	}
 }
