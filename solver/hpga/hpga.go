@@ -47,7 +47,7 @@ type child struct {
 
 // Send the fin message to the parent.
 func (c *child) fin() {
-	c.toParent <- baseMessage{c.id, finMsg}
+	c.sendToParent(finMsg)
 }
 
 // Send a message from a parent to one of its children. See the chanSend
