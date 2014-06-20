@@ -35,11 +35,11 @@ func (d *Domain) inBaseDomain(rat Rat) bool {
 }
 
 // Determine if there is a conflict with the given Rat.
-func (d *Domain) hasConflict(rat Rat) bool {
+func (d *Domain) HasConflict(rat Rat) bool {
 	if d.inBaseDomain(rat) {
 		return len(d.conflicts[rat]) > 0
 	} else {
-		return false
+		return true
 	}
 }
 
@@ -57,7 +57,7 @@ func (domain *Domain) removeConflict(rat Rat, conflict int) {
 	if domain.inBaseDomain(rat) {
 		delete(domain.conflicts[rat], conflict)
 
-		if !domain.hasConflict(rat) {
+		if !domain.HasConflict(rat) {
 			domain.Entries.Insert(rat)
 		}
 	}

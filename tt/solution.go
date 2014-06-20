@@ -298,6 +298,29 @@ func (s *Solution) QuickAssign(eventIndex int, rat Rat) (fitness int) {
 	return
 }
 
+func (s *Solution) RatAt(eventIndex int) Rat {
+	if eventIndex > s.inst.nEvents {
+		return badRat
+	} else {
+		return s.rats[eventIndex]
+	}
+}
+
+// Unassign all conflicting assignments.
+func (s *Solution) RemoveConflicts(eventIndex int) {
+	if eventIndex > s.inst.nEvents {
+		return
+	}
+
+	domain := &s.Domains[eventIndex]
+
+	for rat := range domain.conflicts {
+		for conflict := range domain.conflicts[rat] {
+			s.Unassign(conflict)
+		}
+	}
+}
+
 // Shrink the domains after an assignment.
 func (s *Solution) shrink(eventIndex int) {
 	event := &s.inst.events[eventIndex]

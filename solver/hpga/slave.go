@@ -26,6 +26,11 @@ import (
 	"github.com/brennie/spaghetti/tt"
 )
 
+const (
+	pMutate = 5      // The probability of a mutation is 5%
+	pLocal  = 5 + 50 // The probability of a local crossover is 50%
+)
+
 // A slave is just a child of an island.
 type slave struct {
 	child
@@ -71,9 +76,13 @@ func (slave *slave) run() {
 	topValue := (<-slave.fromParent).(valueMessage).value
 
 	pop := population.New(slave.rng, slave.inst)
+
+	slave.log("finished generating population")
+
 	if best, value := pop.Best(); value.Less(topValue) {
 		topValue = value
 		slave.sendToParent(solnMsg, *best.Clone(), value)
+
 		slave.log("found new best-valued solution: (%d,%d)", value.Distance, value.Fitness)
 	}
 
@@ -97,6 +106,44 @@ func (slave *slave) run() {
 				slave.fin()
 				return
 			}
+
+		default:
+		}
+
+		prob := slave.rng.Intn(99) + 1 // [1, 100]
+
+		if prob < pLocal {
+			var individual *tt.Solution
+
+			if prob < pMutate {
+				individual = pop.RemoveOne(slave.rng)
+				chromosome := slave.rng.Intn(slave.inst.NEvents())
+
+				mutate(individual, chromosome)
+			} else {
+				mother := pop.Pick(slave.rng)
+				father := pop.Pick(slave.rng)
+
+				individual = slave.inst.NewSolution()
+
+				chromosome := slave.rng.Intn(slave.inst.NEvents())
+
+				crossover(mother, father, individual, chromosome)
+			}
+
+			pop.Insert(individual)
+			value := individual.Value()
+
+			if value.Less(topValue) {
+				topValue = value
+
+				slave.log("found new best-valued solution: (%d,%d)", value.Distance, value.Fitness)
+
+				slave.sendToParent(solnMsg, *individual.Clone(), value)
+			}
+
+		} else {
+			// Do a foreign crossover
 		}
 	}
 }
