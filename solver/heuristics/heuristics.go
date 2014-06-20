@@ -19,6 +19,7 @@ package heuristics
 
 import (
 	"container/heap"
+	"math/rand"
 
 	"github.com/brennie/spaghetti/pqueue"
 	"github.com/brennie/spaghetti/tt"
@@ -31,30 +32,18 @@ func MostConstrainedOrdering(soln *tt.Solution) {
 
 	for pq.Len() > 0 {
 		event := heap.Pop(pq).(int)
-
-		if soln.Assigned(event) || soln.Domains[event].Entries.Size() == 0 {
-			continue
-		}
-
-		// Our iterator through the domain entries.
-		el := soln.Domains[event].Entries.First()
-
-		// Set the base line to be the assignment from the first entry.
-		minRat := el.Value().(tt.Rat)
-		minFit := soln.QuickAssign(event, minRat)
-
-		// Now we find the actual minimum.
-		for el = el.Next(); el != nil; el = el.Next() {
-			rat := el.Value().(tt.Rat)
-			if fit := soln.QuickAssign(event, rat); fit < minFit {
-				minFit = fit
-				minRat = rat
-			}
-		}
-
-		soln.Assign(event, minRat)
+		soln.Best(event)
 		pq.Update()
 	}
 
 	return
+}
+
+// Use random variable ordering to fill as much of the domains of the solution
+// as possible. We do not try to find the best element in the domain to assign;
+// we only try to fill up the domain as fast as possible.
+func RandomVariableOrdering(soln *tt.Solution, rng *rand.Rand) {
+	for _, event := range rng.Perm(len(soln.Domains)) {
+		soln.Best(event)
+	}
 }

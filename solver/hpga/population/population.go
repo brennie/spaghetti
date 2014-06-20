@@ -159,17 +159,16 @@ func (p *Population) Best() (*tt.Solution, tt.Value) {
 // Pick a member randomly using the given random number generator. A solution
 // picked this way must not be modified. To pick a member randomly and modify
 // it, use RemoveOne followed by Insert.
-func (p *Population) Pick(rng *rand.Rand) (*tt.Solution, tt.Value) {
-	picked := p.heap[rng.Intn(p.Size())]
-	return picked.soln, picked.value
+func (p *Population) Pick(rng *rand.Rand) *tt.Solution {
+	return p.heap[rng.Intn(p.Size())].soln
 }
 
 // Remove one solution from the population, chosen at random.
-func (p *Population) RemoveOne(rng *rand.Rand) (*tt.Solution, tt.Value) {
+func (p *Population) RemoveOne(rng *rand.Rand) (soln *tt.Solution) {
 	index := rng.Intn(p.Size())
-	picked := p.heap[index]
+	soln = p.heap[index].soln
 
 	heap.Remove(p.heap, index)
 
-	return picked.soln, picked.value
+	return
 }

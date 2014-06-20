@@ -82,6 +82,29 @@ func (s *Solution) Assign(eventIndex int, rat Rat) {
 	s.shrink(eventIndex)
 }
 
+// Determine the best Rat for the given event and assign it.
+func (s *Solution) Best(eventIndex int) {
+	if eventIndex > s.inst.nEvents || s.Assigned(eventIndex) {
+		return
+	}
+
+	if domain := s.Domains[eventIndex].Entries; domain.Size() > 0 {
+		el := domain.First()
+		minRat := el.Value().(Rat)
+		minFit := s.QuickAssign(eventIndex, minRat)
+
+		for el = el.Next(); el != nil; el = el.Next() {
+			rat := el.Value().(Rat)
+			if fit := s.QuickAssign(eventIndex, rat); fit < minFit {
+				minFit = fit
+				minRat = rat
+			}
+		}
+
+		s.Assign(eventIndex, minRat)
+	}
+}
+
 // Create a copy of the solution, keeping the same underlying pointer to the
 // instance.
 func (s *Solution) Clone() (clone *Solution) {

@@ -28,6 +28,7 @@ import (
 	"github.com/docopt/docopt-go"
 
 	"github.com/brennie/spaghetti/checker"
+	"github.com/brennie/spaghetti/fetcher"
 	"github.com/brennie/spaghetti/solver"
 )
 
@@ -40,10 +41,11 @@ University Timetabling Problem.
 Usage:
   spaghetti solve [options] <instance>
   spaghetti check <instance> <solution>
+  spaghetti fetch [<directory>]
   spaghetti -h | --help
   spaghetti --version
 
-Options:
+Options:  
   -h --help         Show this information.
   --islands <n>     Set the number of islands [default: 3].
   --maxprocs <n>    Set GOMAXPROCS to the given value instead of the number of CPUs.
@@ -54,7 +56,7 @@ Options:
   --version         Show version information.
   --output <file>   Write the solution to the given file instead of stdout.`
 
-	arguments, err := docopt.Parse(usage, nil, true, "spaghetti v0.4", false)
+	arguments, err := docopt.Parse(usage, nil, true, "spaghetti v0.5", false)
 
 	if err != nil {
 		log.Fatalf("Could not parse arguments: %s\n", err.Error())
@@ -129,10 +131,12 @@ Options:
 		}
 
 		solver.Solve(filename, output, islands, slaves, verbose)
-	} else {
+	} else if arguments["check"].(bool) {
 		instance := arguments["<instance>"].(string)
 		solution := arguments["<solution>"].(string)
 
 		checker.Check(instance, solution)
+	} else {
+		fetcher.Fetch(arguments["<directory>"])
 	}
 }
