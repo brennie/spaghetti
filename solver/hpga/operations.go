@@ -18,7 +18,6 @@
 package hpga
 
 import (
-	"github.com/brennie/spaghetti/solver/heuristics"
 	"github.com/brennie/spaghetti/tt"
 )
 
@@ -43,12 +42,8 @@ func crossover(mother, father, child *tt.Solution, chromosome int) {
 }
 
 // Mutate a solution at the given chromosome, giving that chromosome the
-// optimal value in the domain. This is followed by most-constrained variable
-// first search to fill up the rest of the domain.
+// optimal value in the domain.
 func mutate(mutant *tt.Solution, chromosome int) {
 	mutant.Unassign(chromosome)
-	mutant.RemoveConflicts(chromosome)
 	mutant.Best(chromosome)
-
-	heuristics.MostConstrainedOrdering(mutant)
 }

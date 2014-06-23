@@ -263,10 +263,8 @@ func (s *Solution) makeDomains() {
 	return
 }
 
-// Assign and unassign without shrinking the domains.
-// QuickAssign is meant to go as fast as possible. If invalid parameters are
-// passed, it will cause spaghetti to exit. Only use this with correct domain
-// entries as it does not fail gracefully.
+// Assign and unassign without shrinking the domains. An invalid eventIndex
+// will cause the program to exit fatally.
 func (s *Solution) QuickAssign(eventIndex int, rat Rat) (fitness int) {
 	if eventIndex > s.inst.nEvents {
 		log.Fatalf("Solution.QuickAssign: Invalid eventIndex `%d'\n", eventIndex)
@@ -275,49 +273,69 @@ func (s *Solution) QuickAssign(eventIndex int, rat Rat) (fitness int) {
 	event := &s.inst.events[eventIndex]
 	ratIndex := rat.index()
 
-	if s.events[ratIndex] != -1 || s.rats[eventIndex].assigned() {
-		log.Fatal("Solution.QuickAssign: Assigned eventIndex or Rat")
+	oldEvent := s.events[ratIndex] // The old event assigned to rat.
+	oldRat := s.rats[eventIndex]   // The old rat assigned to eventIndex.
+
+	// If there is an event assigned to rat, we unschedule it without modifying
+	// the domains involved. This will allow for a correct result from Fitness
+	// without the cost of re-calculating domains.
+	if oldEvent != -1 {
+		// Unassign oldEvent without calling unshrink.
+		for student := range s.inst.events[oldEvent].students {
+			s.attendance[student][oldEvent] = false
+		}
 	}
 
-	s.rats[eventIndex] = rat
-	s.events[ratIndex] = eventIndex
-
-	for student := range event.students {
-		s.attendance[student][rat.Time] = true
+	// If the event is currently assigned, we can unschedule it if and only if
+	// the times differ (otherwise the schedule can remain unchanged). However,
+	// if the event is currently unassigned, we can schedule it appropriately.
+	if oldRat.assigned() && oldRat.Time != rat.Time {
+		for student := range event.students {
+			s.attendance[student][rat.Time] = true
+			s.attendance[student][oldRat.Time] = false
+		}
+	} else if !oldRat.assigned() {
+		for student := range event.students {
+			s.attendance[student][rat.Time] = true
+		}
 	}
 
+	// Fitness doesn't check s.events or s.rats, so we can leave those alone.
 	fitness = s.Fitness()
 
-	for student := range event.students {
-		s.attendance[student][rat.Time] = false
+	// Now we restore the state of the timetable. If the event is currently
+	// assigned, we can re-schedule it if and only if the times differ. if it
+	// is unassigned, we unschedule it.
+	if oldRat.assigned() && oldRat.Time != rat.Time {
+		for student := range event.students {
+			s.attendance[student][rat.Time] = false
+			s.attendance[student][oldRat.Time] = true
+		}
+	} else if !oldRat.assigned() {
+		for student := range event.students {
+			s.attendance[student][rat.Time] = false
+		}
 	}
 
-	s.events[ratIndex] = -1
-	s.rats[eventIndex] = badRat
+	// If there previously was an event assigned to rat, we reschedule it in
+	// the timetable.
+	if oldEvent != -1 {
+		for student := range s.inst.events[oldEvent].students {
+			s.attendance[student][oldEvent] = true
+		}
+	}
 
+	// The timetable is now back in its unmodified state.
 	return
 }
 
+// Get the Rat assigned to the index. If the eventIndex is invalid, badRat is
+// returned.
 func (s *Solution) RatAt(eventIndex int) Rat {
 	if eventIndex > s.inst.nEvents {
 		return badRat
 	} else {
 		return s.rats[eventIndex]
-	}
-}
-
-// Unassign all conflicting assignments.
-func (s *Solution) RemoveConflicts(eventIndex int) {
-	if eventIndex > s.inst.nEvents {
-		return
-	}
-
-	domain := &s.Domains[eventIndex]
-
-	for rat := range domain.conflicts {
-		for conflict := range domain.conflicts[rat] {
-			s.Unassign(conflict)
-		}
 	}
 }
 
