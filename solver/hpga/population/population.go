@@ -20,7 +20,6 @@ package population
 
 import (
 	"container/heap"
-	"fmt"
 	"math/rand"
 
 	"github.com/brennie/spaghetti/solver/heuristics"
@@ -65,17 +64,14 @@ func New(rng *rand.Rand, inst *tt.Instance) (p *Population) {
 
 // Push an element onto the heap. Use Insert instead.
 func (heap popHeap) Push(element interface{}) {
-	soln, ok := element.(*tt.Solution)
-
-	if !ok {
-		panic(fmt.Sprintf("popHeap.Push() expected *tt.Solution; got %v instead", element))
-	}
-
 	if len(heap) == cap(heap) {
 		panic("popHeap.Push() on a full heap")
 	}
 
-	heap = append(heap, individual{soln, soln.Value()})
+	// We don't have to check this type assertion because Push can only be
+	// called through Population.Insert (as popHeap.Push isn't exported) which
+	// is guaranteed to call this function with an individual.
+	heap = append(heap, element.(individual))
 }
 
 // Remove an element from the population.

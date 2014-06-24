@@ -25,10 +25,13 @@ import "github.com/brennie/spaghetti/tt"
 type msgType int
 
 const (
-	stopMsg  msgType = iota // The message telling the children to stop.
-	valueMsg                // A message containing a valuation.
-	solnMsg                 // A solution message.
-	finMsg                  // The message saying the child has finished.
+	stopMsgType      msgType = iota // The message telling the children to stop.
+	valueMsgType                    // A message containing a valuation.
+	solnMsgType                     // A solution message.
+	finMsgType                      // The message saying the child has finished.
+	xoverReqMsgType                 // A slave requesting a crossover from an island.
+	solnReqMsgType                  // An island requesting a solution from a slave.
+	solnReplyMsgType                // A slave replying to an island for a crossover.
 )
 
 // A message passed in the HPGA.
@@ -43,10 +46,34 @@ type baseMessage struct {
 	msgType msgType // The type of the message.
 }
 
+// Get the source of the message.
+func (msg baseMessage) Source() int {
+	return msg.source
+}
+
+// Get the type of the message.
+func (msg baseMessage) MsgType() msgType {
+	return msg.msgType
+}
+
 // A message containing a solution valuation.
 type valueMessage struct {
 	baseMessage
 	value tt.Value // The value of the solution.
+}
+
+// A message from a slave requesting a crossover with another slave.
+type xoverReqMessage struct {
+	baseMessage
+	soln tt.Solution // The solution to crossover with.
+}
+
+// A message from a slave replying to an island for a crossover with another
+// slave.
+type solnReplyMessage struct {
+	baseMessage
+	id   int         // The crossover id.
+	soln tt.Solution // The solution to crossover with.
 }
 
 // A message carrying an actual solution. When sent to a child, this message
@@ -58,12 +85,8 @@ type solnMessage struct {
 	soln  tt.Solution
 }
 
-// Get the source of the message.
-func (msg baseMessage) Source() int {
-	return msg.source
-}
-
-// Get the type of the message.
-func (msg baseMessage) MsgType() msgType {
-	return msg.msgType
+// A message requesting a solution from a slave.
+type solnReqMessage struct {
+	baseMessage
+	id int // The crossover id.
 }

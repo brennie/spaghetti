@@ -28,23 +28,25 @@ import (
 
 const (
 	pMutate = 5      // The probability of a mutation is 5%
-	pLocal  = 5 + 50 // The probability of a local crossover is 50%
+	pLocal  = 5 + 75 // The probability of a local crossover is 75%
 )
 
-// A slave is just a child of an island.
+// A slave is a child of an island.
 type slave struct {
 	child
-	island  int          // The island the slave belongs to
-	inst    *tt.Instance // The timetabling instance.
-	rng     *rand.Rand   // The random number generator for the slave.
-	verbose bool         // Determines if events should be logged.
+	island   int                    // The island the slave belongs to
+	inst     *tt.Instance           // The timetabling instance.
+	rng      *rand.Rand             // The random number generator for the s.
+	verbose  bool                   // Determines if events should be logged.
+	topValue tt.Value               // The best seen value thus far.
+	pop      *population.Population // The slave's population of soluations
 }
 
 // Optionally log a message if the verbose flag is set.
-func (slave *slave) log(format string, args ...interface{}) {
-	if slave.verbose {
+func (s *slave) log(format string, args ...interface{}) {
+	if s.verbose {
 		msg := fmt.Sprintf(format, args...)
-		log.Printf("slave(%d.%d): %s\n", slave.island, slave.id, msg)
+		log.Printf("slave(%d.%d): %s\n", s.island, s.id, msg)
 	}
 }
 
@@ -52,8 +54,8 @@ func (slave *slave) log(format string, args ...interface{}) {
 // island should use to communicate with the controller. The channel returned
 // is the channel the controller should use to communicate with the island.
 func newSlave(island int, id int, inst *tt.Instance, seed int64, toParent chan<- message, verbose bool) chan<- message {
-	fromParent := make(chan message)
-	slave := &slave{
+	fromParent := make(chan message, 5)
+	s := &slave{
 		child{
 			id,
 			fromParent,
@@ -63,87 +65,133 @@ func newSlave(island int, id int, inst *tt.Instance, seed int64, toParent chan<-
 		inst,
 		rand.New(rand.NewSource(seed)),
 		verbose,
+		tt.Value{0, 0},
+		nil,
 	}
 
-	go slave.run()
+	go s.run()
 
 	return fromParent
 }
 
+func (s *slave) handleMessage(msg message) (shouldExit bool) {
+	shouldExit = false
+
+	switch msg.MsgType() {
+	case valueMsgType:
+		if value := msg.(valueMessage).value; value.Less(s.topValue) {
+			s.topValue = value
+			s.log("received valueMsgType: value was better")
+		} else {
+			s.log("received valueMsgType: value was worse")
+		}
+
+	case solnReqMsgType:
+		id := msg.(solnReqMessage).id
+		individual := s.pop.Pick(s.rng)
+		s.sendToParent(solnReplyMsgType, id, *individual.Clone())
+
+	case stopMsgType:
+		s.fin()
+		s.log("received stopMsgType; exiting")
+		shouldExit = true
+	}
+
+	return
+}
+
 // Run the slave.
-func (slave *slave) run() {
+func (s *slave) run() {
 	// Receive the topValue-valued solution message from the island.
-	topValue := (<-slave.fromParent).(valueMessage).value
+	topValue := (<-s.fromParent).(valueMessage).value
 
-	pop := population.New(slave.rng, slave.inst)
+	s.log("generating population...")
 
-	slave.log("finished generating population")
+	s.pop = population.New(s.rng, s.inst)
 
-	if best, value := pop.Best(); value.Less(topValue) {
+	s.log("finished generating population")
+
+	if best, value := s.pop.Best(); value.Less(topValue) {
 		topValue = value
-		slave.sendToParent(solnMsg, *best.Clone(), value)
+		s.sendToParent(solnMsgType, value, *best.Clone())
 
-		slave.log("found new best-valued solution: (%d,%d)", value.Distance, value.Fitness)
+		s.log("found new best-valued solution: (%d,%d)", value.Distance, value.Fitness)
 	}
 
 	for {
 		select {
-		case msg := <-slave.fromParent:
-			switch msg.MsgType() {
-
-			// Update the globally known topValue value.
-			case valueMsg:
-				if value := msg.(valueMessage).value; value.Less(topValue) {
-					topValue = value
-					slave.log("received valueMsg: value was better")
-				} else {
-					slave.log("received valueMsg: value was worse ")
-				}
-
-			// StopValue the slave.
-			case stopMsg:
-				slave.log("received stopMsg: exiting")
-				slave.fin()
+		case msg := <-s.fromParent:
+			if s.handleMessage(msg) {
 				return
 			}
 
 		default:
 		}
 
-		prob := slave.rng.Intn(99) + 1 // [1, 100]
+		prob := s.rng.Intn(99) + 1 // [1, 100]
 
 		if prob < pLocal {
 			var individual *tt.Solution
 
 			if prob < pMutate {
-				individual = pop.RemoveOne(slave.rng)
-				chromosome := slave.rng.Intn(slave.inst.NEvents())
+				individual = s.pop.RemoveOne(s.rng)
+				chromosome := s.rng.Intn(s.inst.NEvents())
 
 				mutate(individual, chromosome)
+
+				s.log("performed a mutation")
 			} else {
-				mother := pop.Pick(slave.rng)
-				father := pop.Pick(slave.rng)
+				mother := s.pop.Pick(s.rng)
+				father := s.pop.Pick(s.rng)
 
-				individual = slave.inst.NewSolution()
+				individual = s.inst.NewSolution()
 
-				chromosome := slave.rng.Intn(slave.inst.NEvents())
+				chromosome := s.rng.Intn(s.inst.NEvents())
 
 				crossover(mother, father, individual, chromosome)
+
+				s.log("performed a local crossover")
 			}
 
-			pop.Insert(individual)
+			s.pop.Insert(individual)
 			value := individual.Value()
 
 			if value.Less(topValue) {
 				topValue = value
 
-				slave.log("found new best-valued solution: (%d,%d)", value.Distance, value.Fitness)
+				s.log("found new best-valued solution: (%d,%d)", value.Distance, value.Fitness)
 
-				slave.sendToParent(solnMsg, *individual.Clone(), value)
+				s.sendToParent(solnMsgType, *individual.Clone(), value)
 			}
 
 		} else {
-			// Do a foreign crossover
+			individual := s.pop.Pick(s.rng).Clone()
+
+			s.sendToParent(xoverReqMsgType, *individual)
+			s.log("sent crossover request to island(%d); awaiting reply", s.island)
+
+			// We wait for a solnMsgType message and process messages in the
+			// mean time. We do this as try to not overload the island with
+			// messages.
+			msg := <-s.fromParent
+			for msg.MsgType() != solnMsgType {
+				if s.handleMessage(msg) {
+					return
+				}
+				msg = <-s.fromParent
+			}
+
+			s.log("received solnMsgType from island(%d); inserting into population", s.island)
+			soln := msg.(solnMessage).soln
+			value := msg.(solnMessage).value
+
+			s.pop.Insert(&soln)
+
+			if value.Less(topValue) {
+				topValue = value
+				s.log("result of crossover is a best-valued solution: (%d, %d)", value.Distance, value.Fitness)
+			}
+
 		}
 	}
 }

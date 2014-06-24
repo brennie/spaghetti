@@ -33,7 +33,7 @@ import (
 )
 
 func main() {
-	log.SetFlags(0)
+	log.SetFlags(log.Ltime)
 
 	usage := `spaghetti: Applying Hierarchical Parallel Genetic Algorithms to solve the
 University Timetabling Problem.
@@ -52,6 +52,7 @@ Options:
   --profile <file>  Collect profiling information in the given file. 
   --seed <seed>     Specify the seed for the random number generator.
   --slaves <n>      Set the number of slaves per island [default: 3].
+  --timeout <n>     Set the timeout time in minutes [default: 30].
   --verbose         Turn on event logging.
   --version         Show version information.
   --output <file>   Write the solution to the given file instead of stdout.`
@@ -75,12 +76,18 @@ Options:
 
 		slaves, err := strconv.Atoi(arguments["--slaves"].(string))
 
-		verbose := arguments["--verbose"].(bool)
-
 		if err != nil {
 			log.Fatalf("Invalid value for --slaves: %s\n", err)
 		} else if slaves < 2 {
 			log.Fatal("Invalid value for --slaves: value must be at least 2")
+		}
+
+		verbose := arguments["--verbose"].(bool)
+
+		timeout, err := strconv.Atoi(arguments["--timeout"].(string))
+
+		if err != nil {
+			log.Fatalf("Invalid value for --timeout: %s\n", err)
 		}
 
 		if arguments["--maxprocs"] != nil {
@@ -130,7 +137,7 @@ Options:
 			rand.Seed(seed)
 		}
 
-		solver.Solve(filename, output, islands, slaves, verbose)
+		solver.Solve(filename, output, islands, slaves, verbose, timeout)
 	} else if arguments["check"].(bool) {
 		instance := arguments["<instance>"].(string)
 		solution := arguments["<solution>"].(string)

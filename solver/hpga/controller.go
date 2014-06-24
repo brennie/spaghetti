@@ -37,9 +37,9 @@ type controller struct {
 // Create a new controller. There will be nIslands islands, each with nSlaves
 // slaves.
 func newController(nIslands, nSlaves int, inst *tt.Instance, verbose bool) *controller {
-	comm := make(chan message)
+	comm := make(chan message, 5)
 
-	controller := &controller{
+	c := &controller{
 		parent{
 			comm,
 			make([]chan<- message, nIslands),
@@ -49,58 +49,58 @@ func newController(nIslands, nSlaves int, inst *tt.Instance, verbose bool) *cont
 	}
 
 	for i := 0; i < nIslands; i++ {
-		controller.parent.toChildren[i] = newIsland(i, nSlaves, inst, rand.Int63(), comm, verbose)
+		c.parent.toChildren[i] = newIsland(i, nSlaves, inst, rand.Int63(), comm, verbose)
 	}
 
-	return controller
+	return c
 }
 
 // Optionally log a message if the verbose flag is set.
-func (controller *controller) log(format string, args ...interface{}) {
-	if controller.verbose {
+func (c *controller) log(format string, args ...interface{}) {
+	if c.verbose {
 		msg := fmt.Sprintf(format, args...)
 		log.Printf("controller: %s\n", msg)
 	}
 }
 
 // Run the controller.
-func (controller *controller) run() *tt.Solution {
-	top := controller.inst.NewSolution() // The top-valued solution over the whole HPGA.
+func (c *controller) run(timeout int) *tt.Solution {
+	top := c.inst.NewSolution() // The top-valued solution over the whole HPGA.
 
 	heuristics.MostConstrainedOrdering(top)
 	topValue := top.Value() // The value of the top-valued solution over the whole HPGA.
 
-	for child := range controller.toChildren {
-		controller.sendToChild(child, valueMsg, topValue)
+	for child := range c.toChildren {
+		c.sendToChild(child, valueMsgType, topValue)
 	}
 
 msgLoop:
 	for {
-		timeout := time.After(2 * time.Minute)
+		timeout := time.After(time.Duration(timeout) * time.Minute)
 		select {
-		case msg := <-controller.fromChildren:
+		case msg := <-c.fromChildren:
 			switch msg.MsgType() {
-			case solnMsg:
+			case solnMsgType:
 				best, value := msg.(solnMessage).soln, msg.(solnMessage).value
 
 				if value.Less(topValue) {
-					controller.log("received solnMsg: value was better")
+					c.log("received solnMsgType: value was better")
 					topValue = value
 					top = &best
 
-					for child := range controller.toChildren {
+					for child := range c.toChildren {
 						if child != msg.Source() {
-							controller.sendToChild(child, valueMsg, topValue)
+							c.sendToChild(child, valueMsgType, topValue)
 						}
 					}
 				} else {
-					controller.log("received solnMsg: value was worse")
+					c.log("received solnMsgType: value was worse")
 				}
 			}
 		case <-timeout:
-			controller.log("timeout: sending stopMsg to all islands")
-			controller.stop()
-			controller.log("received finMsg from all islands: exiting")
+			c.log("timeout: sending stopMsgType to all islands")
+			c.stop()
+			c.log("received finMsgType from all islands: exiting")
 			break msgLoop
 		}
 	}

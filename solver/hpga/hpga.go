@@ -47,7 +47,7 @@ type child struct {
 
 // Send the fin message to the parent.
 func (c *child) fin() {
-	c.sendToParent(finMsg)
+	c.sendToParent(finMsgType)
 }
 
 // Send a message from a parent to one of its children. See the chanSend
@@ -68,19 +68,31 @@ func (c *child) sendToParent(msgType msgType, args ...interface{}) {
 
 // Send a generic message along the channel.
 //
-// Message Type | Arguments
-// ------------------------
-//   valueMsg   | tt.Value
-//    solnMsg   | tt.Value, tt.Solution
+//     Message Type   |      Arguments
+// -------------------+-----------------------
+//     valueMsgType   | tt.Value
+//      solnMsgType   | tt.Value, tt.Solution
+//  solnReplyMsgType  | int, tt.Solution
+//   solnReqMsgType   | int
+//  xoverReqMsgType   | tt.Solution
 func chanSend(c chan<- message, source int, msgType msgType, args ...interface{}) {
 	base := baseMessage{source, msgType}
 
 	switch msgType {
-	case valueMsg:
+	case valueMsgType:
 		c <- valueMessage{base, args[0].(tt.Value)}
 
-	case solnMsg:
+	case solnMsgType:
 		c <- solnMessage{base, args[0].(tt.Value), args[1].(tt.Solution)}
+
+	case solnReplyMsgType:
+		c <- solnReplyMessage{base, args[0].(int), args[1].(tt.Solution)}
+
+	case solnReqMsgType:
+		c <- solnReqMessage{base, args[0].(int)}
+
+	case xoverReqMsgType:
+		c <- xoverReqMessage{base, args[0].(tt.Solution)}
 
 	default:
 		c <- base
@@ -91,7 +103,7 @@ func chanSend(c chan<- message, source int, msgType msgType, args ...interface{}
 // a fin message.
 func (p *parent) stop() {
 	for child := range p.toChildren {
-		p.sendToChild(child, stopMsg)
+		p.sendToChild(child, stopMsgType)
 	}
 
 	finished := make(map[int]bool)
@@ -99,13 +111,13 @@ func (p *parent) stop() {
 	for len(finished) != len(p.toChildren) {
 		msg := <-p.fromChildren
 
-		if msg.MsgType() == finMsg {
+		if msg.MsgType() == finMsgType {
 			finished[msg.Source()] = true
 		}
 	}
 }
 
 // Run the hpga.
-func Run(nIslands, nSlaves int, inst *tt.Instance, verbose bool) *tt.Solution {
-	return newController(nIslands, nSlaves, inst, verbose).run()
+func Run(nIslands, nSlaves int, inst *tt.Instance, verbose bool, timeout int) *tt.Solution {
+	return newController(nIslands, nSlaves, inst, verbose).run(timeout)
 }

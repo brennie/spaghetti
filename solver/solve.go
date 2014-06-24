@@ -28,7 +28,7 @@ import (
 )
 
 // Attempt to solve the instance located in the given filename.
-func Solve(filename string, output io.Writer, islands, slaves int, verbose bool) {
+func Solve(filename string, output io.Writer, islands, slaves int, verbose bool, timeout int) {
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatalf("Could not %s\n", err)
@@ -41,7 +41,7 @@ func Solve(filename string, output io.Writer, islands, slaves int, verbose bool)
 		log.Fatalf("Could not parse %s: %s\n", filename, err)
 	}
 
-	soln := hpga.Run(3, 3, inst, verbose)
+	soln := hpga.Run(3, 3, inst, verbose, timeout)
 
 	soln.Write(output)
 }
