@@ -41,7 +41,7 @@ func Solve(filename string, output io.Writer, islands, slaves int, verbose bool,
 		log.Fatalf("Could not parse %s: %s\n", filename, err)
 	}
 
-	soln := hpga.Run(3, 3, inst, verbose, timeout)
+	soln := hpga.Run(islands, slaves, inst, verbose, timeout)
 
 	soln.Write(output)
 }
