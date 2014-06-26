@@ -66,39 +66,6 @@ func (c *child) sendToParent(msgType msgType, args ...interface{}) {
 	chanSend(c.toParent, c.id, msgType, args...)
 }
 
-// Send a generic message along the channel.
-//
-//     Message Type   |      Arguments
-// -------------------+-----------------------
-//     valueMsgType   | tt.Value
-//      solnMsgType   | tt.Value, tt.Solution
-//  solnReplyMsgType  | int, tt.Solution
-//   solnReqMsgType   | int
-//  xoverReqMsgType   | tt.Solution
-func chanSend(c chan<- message, source int, msgType msgType, args ...interface{}) {
-	base := baseMessage{source, msgType}
-
-	switch msgType {
-	case valueMsgType:
-		c <- valueMessage{base, args[0].(tt.Value)}
-
-	case solnMsgType:
-		c <- solnMessage{base, args[0].(tt.Value), args[1].(tt.Solution)}
-
-	case solnReplyMsgType:
-		c <- solnReplyMessage{base, args[0].(int), args[1].(tt.Solution)}
-
-	case solnReqMsgType:
-		c <- solnReqMessage{base, args[0].(int)}
-
-	case xoverReqMsgType:
-		c <- xoverReqMessage{base, args[0].(tt.Solution)}
-
-	default:
-		c <- base
-	}
-}
-
 // Send the stop message to all children and wait for all fo them to reply with
 // a fin message.
 func (p *parent) stop() {

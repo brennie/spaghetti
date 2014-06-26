@@ -147,7 +147,7 @@ func (i *island) run() {
 
 				i.log("received a crossover request from slave(%d,%d); assigned id %d", i.id, request.Source(), id)
 
-				crossovers[id] = crossoverRequest{request.Source(), &request.soln}
+				crossovers[id] = crossoverRequest{request.Source(), request.soln}
 
 				// We generate a random number in [0, N-1) as there are N-1 other
 				// slaves under the i. We can then map all n >= nSource to
@@ -171,9 +171,9 @@ func (i *island) run() {
 
 					i.log("received a solnReplyMsgType with id %d from slave(%d,%d); doing crossover", id, i.id, msg.Source())
 
-					crossover(crossovers[id].mother, &reply.soln, child, chromosome)
+					crossover(crossovers[id].mother, reply.soln, child, chromosome)
 					value := child.Value()
-					i.sendToChild(crossovers[id].origin, solnMsgType, child.Value(), *child)
+					i.sendToChild(crossovers[id].origin, solnMsgType, child.Value(), child)
 					i.log("sent crossover result of crossover %d to slave(%d,%d)", id, i.id, crossovers[id].origin)
 
 					if value.Less(topValue) {
