@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-
-	"github.com/brennie/spaghetti/set"
 )
 
 // A solution to an instance.
@@ -171,90 +169,6 @@ func (s *Solution) Fitness() (fit int) {
 				fit++
 			}
 		}
-	}
-
-	return
-}
-
-// Generate the domain of one event.
-func (s *Solution) makeDomain(eventIndex int) {
-	event := &s.inst.events[eventIndex]
-	domain := &s.Domains[eventIndex]
-
-	*domain = Domain{
-		set.New(ratCmp),
-		make(map[Rat]map[int]bool),
-	}
-
-	// First we determine all the valid times.
-	var times [NTimes]bool
-	for time := 0; time < NTimes; time++ {
-		times[time] = event.times[time]
-	}
-
-	// We consider all the events that must occur before this one and, for each
-	// one that is assigned, we remove the times that do not occur after the
-	// event's start time.
-	for before := range event.before {
-		rat := s.rats[before]
-
-		if rat.Assigned() {
-			for time := 0; time <= rat.Time; time++ {
-				times[time] = false
-			}
-		}
-	}
-
-	// We consider all the events that must occur after this one and, for each
-	// one that is assigned, we remove the times that do not occur before the
-	// event's end time.
-	for after := range event.before {
-		rat := s.rats[after]
-
-		if rat.Assigned() {
-			for time := rat.Time; time < NTimes; time++ {
-				times[time] = false
-			}
-		}
-	}
-
-	// Add to the domain the unassigned rooms and times subset of valid times.
-	for room := range event.rooms {
-		for time := 0; time < NTimes; time++ {
-			if times[time] {
-				rat := Rat{room, time}
-
-				if s.events[rat.index()] == -1 {
-					domain.Entries.Insert(rat)
-				}
-			}
-		}
-	}
-
-	// Remove from the domain all rats that are the result of the event's
-	// exclusion set (i.e. other events that share a student) that are
-	// already scheduled.
-	for exclude := range event.exclude {
-		rat := s.rats[exclude]
-		if rat.Assigned() {
-			for room := 0; room < s.inst.nRooms; room++ {
-				domain.Entries.Remove(Rat{room, rat.Time})
-			}
-		}
-	}
-
-	for el := domain.Entries.First(); el != nil; el = el.Next() {
-		rat := el.Value().(Rat)
-		domain.conflicts[rat] = make(map[int]bool)
-	}
-
-	return
-}
-
-// Generate the full list of domains for each event.
-func (s *Solution) makeDomains() {
-	for event := range s.Domains {
-		s.makeDomain(event)
 	}
 
 	return

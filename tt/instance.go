@@ -17,6 +17,8 @@
 
 package tt
 
+import "github.com/brennie/spaghetti/set"
+
 // An instance of a timetabling problem.
 type Instance struct {
 	nEvents   int            // The number of events in the instance.
@@ -51,7 +53,25 @@ func (inst *Instance) NewSolution() (s *Solution) {
 		s.events[index] = -1
 	}
 
-	s.makeDomains()
+	for eventIndex := range s.Domains {
+		domain := &s.Domains[eventIndex]
+		event := &inst.events[eventIndex]
+
+		*domain = Domain{
+			set.New(ratCmp),
+			make(map[Rat]map[int]bool),
+		}
+
+		for room := range event.rooms {
+			for time, ok := range event.times {
+				if ok {
+					rat := Rat{room, time}
+					domain.Entries.Insert(rat)
+					domain.conflicts[rat] = make(map[int]bool)
+				}
+			}
+		}
+	}
 
 	return
 }
