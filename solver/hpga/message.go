@@ -65,15 +65,15 @@ type valueMessage struct {
 // A message from a slave requesting a crossover with another slave.
 type xoverReqMessage struct {
 	baseMessage
-	soln *tt.Solution // The solution to crossover with.
+	soln []tt.Rat // The solution to crossover with.
 }
 
 // A message from a slave replying to an island for a crossover with another
 // slave.
 type solnReplyMessage struct {
 	baseMessage
-	id   int          // The crossover id.
-	soln *tt.Solution // The solution to crossover with.
+	id   int      // The crossover id.
+	soln []tt.Rat // The solution to crossover with.
 }
 
 // A message carrying an actual solution. When sent to a child, this message
@@ -82,7 +82,7 @@ type solnReplyMessage struct {
 type solnMessage struct {
 	baseMessage
 	value tt.Value
-	soln  *tt.Solution
+	soln  []tt.Rat
 }
 
 // A message requesting a solution from a slave.
@@ -96,10 +96,10 @@ type solnReqMessage struct {
 //     Message Type   |      Arguments
 // -------------------+-----------------------
 //     valueMsgType   | tt.Value
-//      solnMsgType   | tt.Value, *tt.Solution
-//  solnReplyMsgType  | int, *tt.Solution
+//      solnMsgType   | tt.Value, []tt.Rat
+//  solnReplyMsgType  | int, []tt.Rat
 //   solnReqMsgType   | int
-//  xoverReqMsgType   | *tt.Solution
+//  xoverReqMsgType   | []tt.Rat
 func chanSend(c chan<- message, source int, msgType msgType, args ...interface{}) {
 	base := baseMessage{source, msgType}
 
@@ -108,16 +108,16 @@ func chanSend(c chan<- message, source int, msgType msgType, args ...interface{}
 		c <- valueMessage{base, args[0].(tt.Value)}
 
 	case solnMsgType:
-		c <- solnMessage{base, args[0].(tt.Value), args[1].(*tt.Solution)}
+		c <- solnMessage{base, args[0].(tt.Value), args[1].([]tt.Rat)}
 
 	case solnReplyMsgType:
-		c <- solnReplyMessage{base, args[0].(int), args[1].(*tt.Solution)}
+		c <- solnReplyMessage{base, args[0].(int), args[1].([]tt.Rat)}
 
 	case solnReqMsgType:
 		c <- solnReqMessage{base, args[0].(int)}
 
 	case xoverReqMsgType:
-		c <- xoverReqMessage{base, args[0].(*tt.Solution)}
+		c <- xoverReqMessage{base, args[0].([]tt.Rat)}
 
 	default:
 		c <- base

@@ -34,12 +34,23 @@ type Solution struct {
 	Domains    []Domain   // The domains.
 }
 
+// Retrieve the assignments of a solution as a copy. This is a lighter-weight
+// alternative to cloning the whole solution (which requires cloning the
+// domains and often isn't necesssary).
+func (s *Solution) Assignments() (assignments []Rat) {
+	assignments = make([]Rat, s.inst.nEvents)
+	for event := range s.rats {
+		assignments[event] = s.rats[event]
+	}
+	return
+}
+
 // Determine if the event has been assigned to.
 func (s *Solution) Assigned(eventIndex int) bool {
 	if eventIndex > s.inst.nEvents {
 		return true
 	} else {
-		return s.rats[eventIndex].assigned()
+		return s.rats[eventIndex].Assigned()
 	}
 }
 
@@ -63,7 +74,7 @@ func (s *Solution) Assign(eventIndex int, rat Rat) {
 	// unassign the old room and time and update the student attendance matrix
 	// to reflect the change. Otherwise we just add update the student
 	// attendance matrix.
-	if oldRat := s.rats[eventIndex]; oldRat.assigned() {
+	if oldRat := s.rats[eventIndex]; oldRat.Assigned() {
 		s.events[oldRat.index()] = -1
 		for student := range event.students {
 			s.attendance[student][rat.Time] = true
@@ -91,11 +102,11 @@ func (s *Solution) Best(eventIndex int) {
 	if domain := s.Domains[eventIndex].Entries; domain.Size() > 0 {
 		el := domain.First()
 		minRat := el.Value().(Rat)
-		minFit := s.QuickAssign(eventIndex, minRat)
+		minFit := s.TryAssign(eventIndex, minRat)
 
 		for el = el.Next(); el != nil; el = el.Next() {
 			rat := el.Value().(Rat)
-			if fit := s.QuickAssign(eventIndex, rat); fit < minFit {
+			if fit := s.TryAssign(eventIndex, rat); fit < minFit {
 				minFit = fit
 				minRat = rat
 			}
@@ -105,20 +116,6 @@ func (s *Solution) Best(eventIndex int) {
 	}
 }
 
-// Create a copy of the solution, keeping the same underlying pointer to the
-// instance.
-func (s *Solution) Clone() (clone *Solution) {
-	clone = s.inst.NewSolution()
-
-	for event, rat := range s.rats {
-		if rat.assigned() {
-			clone.Assign(event, rat)
-		}
-	}
-
-	return
-}
-
 // Compute the distance to feasibility of a solution. The distance to
 // to feasibility is defined as the sum of the number of students who attend
 // unscheduled classes.
@@ -126,7 +123,7 @@ func (s *Solution) Distance() (dist int) {
 	dist = 0
 
 	for event, rat := range s.rats {
-		if !rat.assigned() {
+		if !rat.Assigned() {
 			dist += len(s.inst.events[event].students)
 		}
 	}
@@ -201,7 +198,7 @@ func (s *Solution) makeDomain(eventIndex int) {
 	for before := range event.before {
 		rat := s.rats[before]
 
-		if rat.assigned() {
+		if rat.Assigned() {
 			for time := 0; time <= rat.Time; time++ {
 				times[time] = false
 			}
@@ -214,7 +211,7 @@ func (s *Solution) makeDomain(eventIndex int) {
 	for after := range event.before {
 		rat := s.rats[after]
 
-		if rat.assigned() {
+		if rat.Assigned() {
 			for time := rat.Time; time < NTimes; time++ {
 				times[time] = false
 			}
@@ -239,7 +236,7 @@ func (s *Solution) makeDomain(eventIndex int) {
 	// already scheduled.
 	for exclude := range event.exclude {
 		rat := s.rats[exclude]
-		if rat.assigned() {
+		if rat.Assigned() {
 			for room := 0; room < s.inst.nRooms; room++ {
 				domain.Entries.Remove(Rat{room, rat.Time})
 			}
@@ -265,9 +262,9 @@ func (s *Solution) makeDomains() {
 
 // Assign and unassign without shrinking the domains. An invalid eventIndex
 // will cause the program to exit fatally.
-func (s *Solution) QuickAssign(eventIndex int, rat Rat) (fitness int) {
+func (s *Solution) TryAssign(eventIndex int, rat Rat) (fitness int) {
 	if eventIndex > s.inst.nEvents {
-		log.Fatalf("Solution.QuickAssign: Invalid eventIndex `%d'\n", eventIndex)
+		log.Fatalf("Solution.TryAssign: Invalid eventIndex `%d'\n", eventIndex)
 	}
 
 	event := &s.inst.events[eventIndex]
@@ -289,12 +286,12 @@ func (s *Solution) QuickAssign(eventIndex int, rat Rat) (fitness int) {
 	// If the event is currently assigned, we can unschedule it if and only if
 	// the times differ (otherwise the schedule can remain unchanged). However,
 	// if the event is currently unassigned, we can schedule it appropriately.
-	if oldRat.assigned() && oldRat.Time != rat.Time {
+	if oldRat.Assigned() && oldRat.Time != rat.Time {
 		for student := range event.students {
 			s.attendance[student][rat.Time] = true
 			s.attendance[student][oldRat.Time] = false
 		}
-	} else if !oldRat.assigned() {
+	} else if !oldRat.Assigned() {
 		for student := range event.students {
 			s.attendance[student][rat.Time] = true
 		}
@@ -306,12 +303,12 @@ func (s *Solution) QuickAssign(eventIndex int, rat Rat) (fitness int) {
 	// Now we restore the state of the timetable. If the event is currently
 	// assigned, we can re-schedule it if and only if the times differ. if it
 	// is unassigned, we unschedule it.
-	if oldRat.assigned() && oldRat.Time != rat.Time {
+	if oldRat.Assigned() && oldRat.Time != rat.Time {
 		for student := range event.students {
 			s.attendance[student][rat.Time] = false
 			s.attendance[student][oldRat.Time] = true
 		}
-	} else if !oldRat.assigned() {
+	} else if !oldRat.Assigned() {
 		for student := range event.students {
 			s.attendance[student][rat.Time] = false
 		}

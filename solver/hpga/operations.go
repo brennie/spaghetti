@@ -25,18 +25,16 @@ import (
 // child gets the rats from events [0, chromosome) from the mother and rats
 // from events [chromosome, nEvents) from the father (assuming that those do
 // not have any conflicts).
-func crossover(mother, father, child *tt.Solution, chromosome int) {
+func crossover(mother, father []tt.Rat, child *tt.Solution, chromosome int) {
 	for event := 0; event < chromosome; event++ {
-		if mother.Assigned(event) {
-			child.Assign(event, mother.RatAt(event))
+		if rat := mother[event]; rat.Assigned() {
+			child.Assign(event, rat)
 		}
 	}
 
 	for event := chromosome; event < len(child.Domains); event++ {
-		if father.Assigned(event) {
-			if rat := father.RatAt(event); !child.Domains[event].HasConflict(rat) {
-				child.Assign(event, rat)
-			}
+		if rat := father[event]; rat.Assigned() && !child.Domains[event].HasConflict(rat) {
+			child.Assign(event, rat)
 		}
 	}
 }

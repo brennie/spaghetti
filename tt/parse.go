@@ -238,7 +238,7 @@ func (inst *Instance) ParseSolution(r io.Reader) (s *Solution, err error) {
 			return
 		}
 
-		if rat.assigned() {
+		if rat.Assigned() {
 			soln.Assign(event, rat)
 		}
 	}

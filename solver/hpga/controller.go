@@ -86,7 +86,7 @@ msgLoop:
 				if value.Less(topValue) {
 					c.log("received solnMsgType: value was better")
 					topValue = value
-					top = best
+					top = c.inst.SolutionFromRats(best)
 
 					for child := range c.toChildren {
 						if child != msg.Source() {

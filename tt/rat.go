@@ -25,15 +25,15 @@ type Rat struct {
 	Time int // The assigned time.
 }
 
+// Determine if the given room and time is an assigned room and time.
+func (r Rat) Assigned() bool {
+	return r.Room != badRat.Room && r.Time != badRat.Time
+}
+
 // Determine the index of the room and time in the array of all rooms and
 // times.
 func (r Rat) index() int {
 	return r.Room*NTimes + r.Time
-}
-
-// Determine if the given room and time is an assigned room and time.
-func (r Rat) assigned() bool {
-	return r.Room != badRat.Room && r.Time != badRat.Time
 }
 
 // Build a Rat from an index.

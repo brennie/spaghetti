@@ -30,14 +30,14 @@ import (
 type island struct {
 	parent
 	child
-	rng     *rand.Rand   // The random number generator for the i.
+	rng     *rand.Rand   // The random number generator for the island.
 	inst    *tt.Instance // The timetabling instance.
 	verbose bool         // Determines if events should be logged.
 }
 
 type crossoverRequest struct {
-	origin int          // The slave that requested the crossover
-	mother *tt.Solution // The given solutions
+	origin int      // The slave that requested the crossover.
+	mother []tt.Rat // The first parent to crossover with.
 }
 
 // Create a new island with the given id and number of slaves. The given
@@ -173,7 +173,7 @@ func (i *island) run() {
 
 					crossover(crossovers[id].mother, reply.soln, child, chromosome)
 					value := child.Value()
-					i.sendToChild(crossovers[id].origin, solnMsgType, child.Value(), child)
+					i.sendToChild(crossovers[id].origin, solnMsgType, child.Value(), child.Assignments())
 					i.log("sent crossover result of crossover %d to slave(%d,%d)", id, i.id, crossovers[id].origin)
 
 					if value.Less(topValue) {

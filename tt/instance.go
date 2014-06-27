@@ -55,3 +55,18 @@ func (inst *Instance) NewSolution() (s *Solution) {
 
 	return
 }
+
+func (inst *Instance) SolutionFromRats(rats []Rat) (s *Solution) {
+	if len(rats) != inst.nEvents {
+		panic("len(rats) != inst.nEvents")
+	}
+
+	s = inst.NewSolution()
+	for event, rat := range rats {
+		if rat.Assigned() {
+			s.Assign(event, rat)
+		}
+	}
+
+	return s
+}

@@ -88,7 +88,7 @@ func (s *slave) handleMessage(msg message) (shouldExit bool) {
 
 	case solnReqMsgType:
 		id := msg.(solnReqMessage).id
-		s.sendToParent(solnReplyMsgType, id, s.pop.Pick(s.rng).Clone())
+		s.sendToParent(solnReplyMsgType, id, s.pop.Pick(s.rng).Assignments())
 
 	case stopMsgType:
 		s.fin()
@@ -112,7 +112,7 @@ func (s *slave) run() {
 
 	if best, value := s.pop.Best(); value.Less(topValue) {
 		topValue = value
-		s.sendToParent(solnMsgType, value, best.Clone())
+		s.sendToParent(solnMsgType, value, best.Assignments())
 
 		s.log("found new best-valued solution: (%d,%d)", value.Distance, value.Fitness)
 	}
@@ -140,8 +140,8 @@ func (s *slave) run() {
 
 				s.log("performed a mutation")
 			} else {
-				mother := s.pop.Pick(s.rng)
-				father := s.pop.Pick(s.rng)
+				mother := s.pop.Pick(s.rng).Assignments()
+				father := s.pop.Pick(s.rng).Assignments()
 
 				individual = s.inst.NewSolution()
 
@@ -160,13 +160,11 @@ func (s *slave) run() {
 
 				s.log("found new best-valued solution: (%d,%d)", value.Distance, value.Fitness)
 
-				s.sendToParent(solnMsgType, individual.Clone(), value)
+				s.sendToParent(solnMsgType, individual.Assignments(), value)
 			}
 
 		} else {
-			individual := s.pop.Pick(s.rng).Clone()
-
-			s.sendToParent(xoverReqMsgType, individual)
+			s.sendToParent(xoverReqMsgType, s.pop.Pick(s.rng).Assignments())
 			s.log("sent crossover request to island(%d); awaiting reply", s.island)
 
 			// We wait for a solnMsgType message and process messages in the
@@ -184,7 +182,7 @@ func (s *slave) run() {
 			soln := msg.(solnMessage).soln
 			value := msg.(solnMessage).value
 
-			s.pop.Insert(soln)
+			s.pop.Insert(s.inst.SolutionFromRats(soln))
 
 			if value.Less(topValue) {
 				topValue = value
