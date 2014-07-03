@@ -25,6 +25,18 @@ type Element struct {
 	left, right *Element    // The left and right children.
 }
 
+// Clean up the tree so that it may be garbage collected.
+func (e *Element) free() {
+	if e != nil {
+		e.left.free()
+		e.right.free()
+
+		e.left = nil
+		e.right = nil
+		e.parent = nil
+	}
+}
+
 // Get the value associated with the element.
 func (e *Element) Value() interface{} {
 	return e.value

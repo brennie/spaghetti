@@ -57,31 +57,31 @@ func New(rng *rand.Rand, inst *tt.Instance) (p *Population) {
 		p.heap[i].value = p.heap[i].soln.Value()
 	}
 
-	heap.Init(p.heap)
+	heap.Init(&p.heap)
 
 	return
 }
 
 // Push an element onto the heap. Use Insert instead.
-func (heap popHeap) Push(element interface{}) {
-	if len(heap) == cap(heap) {
+func (heap *popHeap) Push(element interface{}) {
+	if len(*heap) == cap(*heap) {
 		panic("popHeap.Push() on a full heap")
 	}
 
 	// We don't have to check this type assertion because Push can only be
 	// called through Population.Insert (as popHeap.Push isn't exported) which
 	// is guaranteed to call this function with an individual.
-	heap = append(heap, element.(individual))
+	*heap = append(*heap, element.(individual))
 }
 
 // Remove an element from the population.
-func (heap popHeap) Pop() (element interface{}) {
-	if len(heap) == 0 {
+func (heap *popHeap) Pop() (element interface{}) {
+	if len(*heap) == 0 {
 		panic("Popping from empty Population")
 	}
-	newLen := len(heap) - 1
-	element = heap[newLen].soln
-	heap = heap[0:newLen]
+	newLen := len(*heap) - 1
+	element = (*heap)[newLen].soln
+	*heap = (*heap)[0:newLen]
 
 	return
 }
@@ -119,7 +119,13 @@ func (p *Population) Select() {
 	oldLen := p.Size()
 	copy := p.heap[:]
 	for i, j := 0, oldLen-1; i < MinSize; i, j = i+1, j-1 {
-		copy[j] = heap.Pop(p.heap).(individual)
+		// heap.Pop will only return the *tt.Solution part of the underlying
+		// individual. Hence we copy the value before popping so that we can
+		// save it and put it in the appropriate place without re-calculating
+		// the value of the solution.
+		value := p.heap[0]
+		heap.Pop(&p.heap)
+		copy[j] = value
 	}
 
 	// Now we restore the heap. Elmements [MaxSize - Minsize, MaxSize) are
@@ -129,6 +135,14 @@ func (p *Population) Select() {
 	p.heap = copy
 	for i, j := 0, oldLen-1; i < j; i, j = i+1, j-1 {
 		p.heap.Swap(i, j)
+	}
+
+	// Nil all pointers that are used in the no-longer-needed solutions.
+	for i := MinSize; i < oldLen; i++ {
+		for dom := range p.heap[i].soln.Domains {
+			p.heap[i].soln.Domains[dom].Entries.Empty()
+		}
+		p.heap[i].soln = nil
 	}
 
 	// We can drop all the rest of the elements so that we only have a heap of
@@ -143,7 +157,7 @@ func (p *Population) Insert(soln *tt.Solution) {
 		p.Select()
 	}
 
-	heap.Push(p.heap, individual{soln, soln.Value()})
+	heap.Push(&p.heap, individual{soln, soln.Value()})
 }
 
 // Determine the best member of the population. A solution picked this way must
@@ -164,7 +178,7 @@ func (p *Population) RemoveOne(rng *rand.Rand) (soln *tt.Solution) {
 	index := rng.Intn(p.Size())
 	soln = p.heap[index].soln
 
-	heap.Remove(p.heap, index)
+	heap.Remove(&p.heap, index)
 
 	return
 }
