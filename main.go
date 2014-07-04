@@ -18,7 +18,10 @@
 package main
 
 import (
+	cryptoRand "crypto/rand"
 	"log"
+	"math"
+	"math/big"
 	"math/rand"
 	"os"
 	"runtime"
@@ -135,6 +138,14 @@ Options:
 			}
 
 			rand.Seed(seed)
+		} else {
+			seed, err := cryptoRand.Int(cryptoRand.Reader, big.NewInt(math.MaxInt64))
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			log.Printf("Using seed: %d\n", seed.Int64())
+			rand.Seed(seed.Int64())
 		}
 
 		solver.Solve(filename, output, islands, slaves, verbose, timeout)
