@@ -174,6 +174,17 @@ func (s *Solution) Fitness() (fit int) {
 	return
 }
 
+// Determine the number of assigned events in the solution.
+func (s *Solution) NAssigned() (count int) {
+	count = 0
+	for _, rat := range s.rats {
+		if rat.Assigned() {
+			count++
+		}
+	}
+	return
+}
+
 // Assign and unassign without shrinking the domains. An invalid eventIndex
 // will cause the program to exit fatally.
 func (s *Solution) TryAssign(eventIndex int, rat Rat) (fitness int) {

@@ -91,9 +91,9 @@ func (s *slave) handleMessage(msg message) (shouldExit bool) {
 		s.sendToParent(solnReplyMsgType, id, s.pop.Pick(s.rng).Assignments())
 
 	case stopMsgType:
-		s.fin()
 		s.log("received stopMsgType; exiting")
 		shouldExit = true
+		s.fin()
 	}
 
 	return
@@ -134,9 +134,24 @@ func (s *slave) run() {
 
 			if prob < pMutate {
 				individual = s.pop.RemoveOne(s.rng)
-				chromosome := s.rng.Intn(s.inst.NEvents())
+				nAssigned := individual.NAssigned()
 
-				mutate(individual, chromosome)
+				// If all the events have been assigned, we mutate one of them
+				// at random. Otherwise we pick the Nth unassigned event and
+				// walk through the events until we find its index.
+				if nAssigned == s.inst.NEvents() {
+					mutate(individual, s.rng.Intn(s.inst.NEvents()))
+				} else {
+					chromosome := s.rng.Intn(s.inst.NEvents() - nAssigned)
+					for i := 0; i < s.inst.NEvents(); i++ {
+						if individual.Assigned(i) {
+							chromosome++
+						} else if i == chromosome {
+							break
+						}
+					}
+					mutate(individual, chromosome)
+				}
 
 				s.log("performed a mutation")
 			} else {
