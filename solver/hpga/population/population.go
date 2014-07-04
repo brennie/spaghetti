@@ -139,9 +139,7 @@ func (p *Population) Select() {
 
 	// Nil all pointers that are used in the no-longer-needed solutions.
 	for i := MinSize; i < oldLen; i++ {
-		for dom := range p.heap[i].soln.Domains {
-			p.heap[i].soln.Domains[dom].Entries.Empty()
-		}
+		p.heap[i].soln.Free()
 		p.heap[i].soln = nil
 	}
 

@@ -19,6 +19,7 @@ package tt
 import (
 	"fmt"
 	"io"
+	"sync"
 )
 
 const (
@@ -51,7 +52,13 @@ func readBool(r io.Reader) (b bool, err error) {
 // Read a timetabling instance from the reader.
 func Parse(r io.Reader) (newInst *Instance, err error) {
 	line := 1 // Line number for error reporting.
-	inst := new(Instance)
+	inst := &Instance{}
+
+	inst.solnPool = sync.Pool{
+		New: func() interface{} {
+			return inst.allocSolution()
+		},
+	}
 
 	newInst = nil
 	err = nil

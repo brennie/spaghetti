@@ -17,7 +17,11 @@
 
 package tt
 
-import "github.com/brennie/spaghetti/set"
+import (
+	"sync"
+
+	"github.com/brennie/spaghetti/set"
+)
 
 // An instance of a timetabling problem.
 type Instance struct {
@@ -28,15 +32,11 @@ type Instance struct {
 	rooms     []room         // The rooms in the instance.
 	events    []event        // The events in the instance.
 	students  []map[int]bool // The attendance of the students in the instance.
+	solnPool  sync.Pool      // A object pool for solutions.
 }
 
-// Get the number of events in the instance.
-func (inst *Instance) NEvents() int {
-	return inst.nEvents
-}
-
-// Create a new empty solution to the instance.
-func (inst *Instance) NewSolution() (s *Solution) {
+// Allocate the memory for a solution.
+func (inst *Instance) allocSolution() (s *Solution) {
 	s = &Solution{
 		inst,
 		make([][45]bool, inst.nStudents),
@@ -76,6 +76,17 @@ func (inst *Instance) NewSolution() (s *Solution) {
 	return
 }
 
+// Get the number of events in the instance.
+func (inst *Instance) NEvents() int {
+	return inst.nEvents
+}
+
+// Create a new empty solution to the instance.
+func (inst *Instance) NewSolution() (s *Solution) {
+	return inst.solnPool.Get().(*Solution)
+}
+
+// Create a solution with the assignments specified in rats.
 func (inst *Instance) SolutionFromRats(rats []Rat) (s *Solution) {
 	if len(rats) != inst.nEvents {
 		panic("len(rats) != inst.nEvents")

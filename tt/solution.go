@@ -174,6 +174,33 @@ func (s *Solution) Fitness() (fit int) {
 	return
 }
 
+// Free the solution back to the object pool.
+func (s *Solution) Free() {
+	for event := range s.rats {
+		s.rats[event] = badRat
+	}
+
+	for ratIndex := range s.events {
+		s.events[ratIndex] = -1
+	}
+
+	// Reset the domains of the solution.
+	for event := range s.Domains {
+		domain := &s.Domains[event]
+
+		for rat := range domain.conflicts {
+			if len(domain.conflicts[rat]) > 0 {
+				for conflict := range domain.conflicts[rat] {
+					delete(domain.conflicts[rat], conflict)
+				}
+				s.Domains[event].Entries.Insert(rat)
+			}
+		}
+	}
+
+	s.inst.solnPool.Put(s)
+}
+
 // Determine the number of assigned events in the solution.
 func (s *Solution) NAssigned() (count int) {
 	count = 0

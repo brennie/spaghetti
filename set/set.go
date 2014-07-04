@@ -46,12 +46,6 @@ func New(compare Compare) Set {
 	}
 }
 
-// Empty the set.
-func (s *Set) Empty() {
-	s.root.free()
-	s.size = 0
-}
-
 // Determine if the set contains the given value.
 func (s *Set) Contains(value interface{}) bool {
 	return s.Find(value) != nil

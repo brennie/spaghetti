@@ -25,16 +25,12 @@ type Element struct {
 	left, right *Element    // The left and right children.
 }
 
-// Clean up the tree so that it may be garbage collected.
+// Free the element back to the object pool.
 func (e *Element) free() {
-	if e != nil {
-		e.left.free()
-		e.right.free()
-
-		e.left = nil
-		e.right = nil
-		e.parent = nil
-	}
+	e.left = nil
+	e.right = nil
+	e.parent = nil
+	pool.Put(e)
 }
 
 // Get the value associated with the element.
@@ -82,14 +78,12 @@ func (e *Element) Prev() *Element {
 }
 
 // Create a new element to be inserted into a set.
-func newElement(value interface{}, parent *Element) *Element {
-	return &Element{
-		true,
-		value,
-		parent,
-		nil,
-		nil,
-	}
+func newElement(value interface{}, parent *Element) (e *Element) {
+	e = pool.Get().(*Element)
+	e.red = true
+	e.value = value
+	e.parent = parent
+	return
 }
 
 // Get the grandparent node or nil if there isn't one.

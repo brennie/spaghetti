@@ -50,9 +50,7 @@ func (s *Set) Remove(value interface{}) {
 			child.red = false
 		}
 
-		element.parent = nil
-		element.left = nil
-		element.right = nil
+		element.free()
 
 		s.size--
 	}
