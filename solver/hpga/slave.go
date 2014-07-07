@@ -36,7 +36,6 @@ type slave struct {
 	child
 	island   int                    // The island the slave belongs to
 	inst     *tt.Instance           // The timetabling instance.
-	rng      *rand.Rand             // The random number generator for the s.
 	verbose  bool                   // Determines if events should be logged.
 	topValue tt.Value               // The best seen value thus far.
 	pop      *population.Population // The slave's population of soluations
@@ -53,7 +52,7 @@ func (s *slave) log(format string, args ...interface{}) {
 // Create a new slave with the given id. The given channel is the channel the
 // island should use to communicate with the controller. The channel returned
 // is the channel the controller should use to communicate with the island.
-func newSlave(island int, id int, inst *tt.Instance, seed int64, toParent chan<- message, verbose bool) chan<- message {
+func newSlave(island int, id int, inst *tt.Instance, toParent chan<- message, verbose bool) chan<- message {
 	fromParent := make(chan message, 5)
 	s := &slave{
 		child{
@@ -63,7 +62,6 @@ func newSlave(island int, id int, inst *tt.Instance, seed int64, toParent chan<-
 		},
 		island,
 		inst,
-		rand.New(rand.NewSource(seed)),
 		verbose,
 		tt.Value{0, 0},
 		nil,
@@ -88,7 +86,7 @@ func (s *slave) handleMessage(msg message) (shouldExit bool) {
 
 	case solnReqMsgType:
 		id := msg.(solnReqMessage).id
-		s.sendToParent(solnReplyMsgType, id, s.pop.Pick(s.rng).Assignments())
+		s.sendToParent(solnReplyMsgType, id, s.pop.Pick().Assignments())
 
 	case stopMsgType:
 		s.log("received stopMsgType; exiting")
@@ -106,7 +104,7 @@ func (s *slave) run() {
 
 	s.log("generating population...")
 
-	s.pop = population.New(s.rng, s.inst)
+	s.pop = population.New(s.inst)
 
 	s.log("finished generating population")
 
@@ -127,22 +125,22 @@ func (s *slave) run() {
 		default:
 		}
 
-		prob := s.rng.Intn(99) + 1 // [1, 100]
+		prob := rand.Intn(99) + 1 // [1, 100]
 
 		if prob < pLocal {
 			var individual *tt.Solution
 
 			if prob < pMutate {
-				individual = s.pop.RemoveOne(s.rng)
+				individual = s.pop.RemoveOne()
 				nAssigned := individual.NAssigned()
 
 				// If all the events have been assigned, we mutate one of them
 				// at random. Otherwise we pick the Nth unassigned event and
 				// walk through the events until we find its index.
 				if nAssigned == s.inst.NEvents() {
-					mutate(individual, s.rng.Intn(s.inst.NEvents()))
+					mutate(individual, rand.Intn(s.inst.NEvents()))
 				} else {
-					chromosome := s.rng.Intn(s.inst.NEvents() - nAssigned)
+					chromosome := rand.Intn(s.inst.NEvents() - nAssigned)
 					for i := 0; i < s.inst.NEvents(); i++ {
 						if individual.Assigned(i) {
 							chromosome++
@@ -155,12 +153,12 @@ func (s *slave) run() {
 
 				s.log("performed a mutation")
 			} else {
-				mother := s.pop.Pick(s.rng).Assignments()
-				father := s.pop.Pick(s.rng).Assignments()
+				mother := s.pop.Pick().Assignments()
+				father := s.pop.Pick().Assignments()
 
 				individual = s.inst.NewSolution()
 
-				chromosome := s.rng.Intn(s.inst.NEvents())
+				chromosome := rand.Intn(s.inst.NEvents())
 
 				crossover(mother, father, individual, chromosome)
 
@@ -179,7 +177,7 @@ func (s *slave) run() {
 			}
 
 		} else {
-			s.sendToParent(xoverReqMsgType, s.pop.Pick(s.rng).Assignments())
+			s.sendToParent(xoverReqMsgType, s.pop.Pick().Assignments())
 			s.log("sent crossover request to island(%d); awaiting reply", s.island)
 
 			// We wait for a solnMsgType message and process messages in the

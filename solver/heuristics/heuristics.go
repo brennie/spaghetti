@@ -42,8 +42,8 @@ func MostConstrainedOrdering(soln *tt.Solution) {
 // Use random variable ordering to fill as much of the domains of the solution
 // as possible. We do not try to find the best element in the domain to assign;
 // we only try to fill up the domain as fast as possible.
-func RandomVariableOrdering(soln *tt.Solution, rng *rand.Rand) {
-	for _, event := range rng.Perm(len(soln.Domains)) {
+func RandomVariableOrdering(soln *tt.Solution) {
+	for _, event := range rand.Perm(len(soln.Domains)) {
 		soln.Best(event)
 	}
 }

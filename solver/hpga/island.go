@@ -30,7 +30,6 @@ import (
 type island struct {
 	parent
 	child
-	rng     *rand.Rand   // The random number generator for the island.
 	inst    *tt.Instance // The timetabling instance.
 	verbose bool         // Determines if events should be logged.
 }
@@ -44,7 +43,7 @@ type crossoverRequest struct {
 // channel is the channel the island should use to communicate with the
 // controller. The channel returned is the channel the controller should use to
 // communicate with the i.
-func newIsland(id, nSlaves int, inst *tt.Instance, seed int64, toParent chan<- message, verbose bool) chan<- message {
+func newIsland(id, nSlaves int, inst *tt.Instance, toParent chan<- message, verbose bool) chan<- message {
 	fromParent := make(chan message, 5)
 	comm := make(chan message, 5)
 
@@ -58,13 +57,12 @@ func newIsland(id, nSlaves int, inst *tt.Instance, seed int64, toParent chan<- m
 			fromParent,
 			toParent,
 		},
-		rand.New(rand.NewSource(seed)),
 		inst,
 		verbose,
 	}
 
 	for child := 0; child < nSlaves; child++ {
-		i.toChildren[child] = newSlave(id, child, inst, rand.Int63(), comm, verbose)
+		i.toChildren[child] = newSlave(id, child, inst, comm, verbose)
 	}
 
 	go i.run()
@@ -140,9 +138,9 @@ func (i *island) run() {
 				request := msg.(xoverReqMessage)
 
 				// Generate a currently unused crossover id
-				id := i.rng.Int()
+				id := rand.Int()
 				for _, used := crossovers[id]; used; {
-					id = i.rng.Int()
+					id = rand.Int()
 				}
 
 				i.log("received a crossover request from slave(%d,%d); assigned id %d", i.id, request.Source(), id)
@@ -153,7 +151,7 @@ func (i *island) run() {
 				// slaves under the i. We can then map all n >= nSource to
 				// n+1 to get a uniform probability that any slave that is not the
 				// source is picked.
-				other := i.rng.Intn(len(i.toChildren) - 1)
+				other := rand.Intn(len(i.toChildren) - 1)
 				if other >= msg.Source() {
 					other++
 				}
@@ -167,7 +165,7 @@ func (i *island) run() {
 				if _, used := crossovers[id]; used {
 					reply := msg.(solnReplyMessage)
 					child := i.inst.NewSolution()
-					chromosome := i.rng.Intn(i.inst.NEvents())
+					chromosome := rand.Intn(i.inst.NEvents())
 
 					i.log("received a solnReplyMsgType with id %d from slave(%d,%d); doing crossover", id, i.id, msg.Source())
 

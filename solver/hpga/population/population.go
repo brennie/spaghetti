@@ -48,12 +48,12 @@ type Population struct {
 
 // Generate a population of size MinSize using the random variable order
 // heuristic.
-func New(rng *rand.Rand, inst *tt.Instance) (p *Population) {
+func New(inst *tt.Instance) (p *Population) {
 	p = &Population{make(popHeap, MinSize, MaxSize)}
 
 	for i := 0; i < MinSize; i++ {
 		p.heap[i].soln = inst.NewSolution()
-		heuristics.RandomVariableOrdering(p.heap[i].soln, rng)
+		heuristics.RandomVariableOrdering(p.heap[i].soln)
 		p.heap[i].value = p.heap[i].soln.Value()
 	}
 
@@ -167,13 +167,13 @@ func (p *Population) Best() (*tt.Solution, tt.Value) {
 // Pick a member randomly using the given random number generator. A solution
 // picked this way must not be modified. To pick a member randomly and modify
 // it, use RemoveOne followed by Insert.
-func (p *Population) Pick(rng *rand.Rand) *tt.Solution {
-	return p.heap[rng.Intn(p.Size())].soln
+func (p *Population) Pick() *tt.Solution {
+	return p.heap[rand.Intn(p.Size())].soln
 }
 
 // Remove one solution from the population, chosen at random.
-func (p *Population) RemoveOne(rng *rand.Rand) (soln *tt.Solution) {
-	index := rng.Intn(p.Size())
+func (p *Population) RemoveOne() (soln *tt.Solution) {
+	index := rand.Intn(p.Size())
 	soln = p.heap[index].soln
 
 	heap.Remove(&p.heap, index)

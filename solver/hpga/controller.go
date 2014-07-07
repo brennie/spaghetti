@@ -20,7 +20,6 @@ package hpga
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"time"
 
 	"github.com/brennie/spaghetti/solver/heuristics"
@@ -49,7 +48,7 @@ func newController(nIslands, nSlaves int, inst *tt.Instance, verbose bool) *cont
 	}
 
 	for i := 0; i < nIslands; i++ {
-		c.parent.toChildren[i] = newIsland(i, nSlaves, inst, rand.Int63(), comm, verbose)
+		c.parent.toChildren[i] = newIsland(i, nSlaves, inst, comm, verbose)
 	}
 
 	return c
