@@ -17,6 +17,8 @@
 
 package tt
 
+import "fmt"
+
 // A solution valuation.
 type Value struct {
 	Distance int // The distance to feasibility.
@@ -35,4 +37,9 @@ func (v Value) Less(u Value) bool {
 	default:
 		return false
 	}
+}
+
+// Format a value as a 2-tuple of the distance at fitness
+func (v Value) String() string {
+	return fmt.Sprintf("(%d, %d)", v.Distance, v.Fitness)
 }

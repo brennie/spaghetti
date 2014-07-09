@@ -21,6 +21,11 @@ import (
 	"github.com/brennie/spaghetti/tt"
 )
 
+const (
+	pMutate = 5  // The probability of a mutation is 5%
+	pLocal  = 75 // The probability of a local crossover is 75%
+)
+
 // Perform a crossover between the mother and father, yielding the child. The
 // child gets the rats from events [0, chromosome) from the mother and rats
 // from events [chromosome, nEvents) from the father (assuming that those do

@@ -24,27 +24,22 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/brennie/spaghetti/options"
 )
 
 const (
 	nInstances = 24
-	defaultDir = "instances"
 	baseFile   = "comp-2007-2-%d.tim"
 	baseUrl    = "http://www.cs.qub.ac.uk/itc2007/postenrolcourse/initialdatasets/comp-2007-2-%d.tim"
 )
 
 // Fetch the instances and store them in the given directory, or defaultDir if
 // that is nil.
-func Fetch(directory interface{}) {
-	dir := defaultDir
-
-	if directory != nil {
-		dir = directory.(string)
-	}
-
-	err := os.Mkdir(dir, 0700)
+func Fetch(opts options.FetchOptions) {
+	err := os.Mkdir(opts.Directory, 0700)
 	if err == nil || os.IsExist(err) {
-		if err := os.Chdir(dir); err != nil {
+		if err := os.Chdir(opts.Directory); err != nil {
 			log.Fatal(err)
 		}
 
@@ -71,7 +66,7 @@ func Fetch(directory interface{}) {
 			resp.Body.Close()
 			file.Close()
 
-			log.Printf("Downloaded %s%c%s instance (%d bytes)\n", dir, os.PathSeparator, filename, resp.ContentLength)
+			log.Printf("Downloaded %s%c%s instance (%d bytes)\n", opts.Directory, os.PathSeparator, filename, resp.ContentLength)
 		}
 	} else {
 		log.Fatal(err)

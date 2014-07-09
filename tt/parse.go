@@ -234,22 +234,16 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 
 // Parse a solution from the given reader.
 func (inst *Instance) ParseSolution(r io.Reader) (s *Solution, err error) {
-	soln := inst.NewSolution()
 	s = nil
+	rats := make([]Rat, inst.NEvents())
 
-	for event := range soln.rats {
-		var rat Rat
-
-		if _, err = fmt.Fscanf(r, "%d %d\n", &rat.Time, &rat.Room); err != nil {
+	for event := range rats {
+		if _, err = fmt.Fscanf(r, "%d %d\n", &rats[event].Time, &rats[event].Room); err != nil {
 			err = fmt.Errorf(formatError, event+1, err.Error())
 			return
 		}
-
-		if rat.Assigned() {
-			soln.Assign(event, rat)
-		}
 	}
 
-	s = soln
+	s = inst.SolutionFromRats(rats)
 	return
 }

@@ -21,6 +21,7 @@ package hpga
 import (
 	"log"
 
+	"github.com/brennie/spaghetti/options"
 	"github.com/brennie/spaghetti/tt"
 )
 
@@ -85,6 +86,6 @@ func (p *parent) stop() {
 }
 
 // Run the hpga.
-func Run(nIslands, nSlaves int, inst *tt.Instance, verbose bool, timeout int) *tt.Solution {
-	return newController(nIslands, nSlaves, inst, verbose).run(timeout)
+func Run(inst *tt.Instance, opts options.SolveOptions) (*tt.Solution, tt.Value) {
+	return newController(inst, opts).run(opts.Timeout)
 }

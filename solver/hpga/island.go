@@ -22,6 +22,7 @@ import (
 	"log"
 	"math/rand"
 
+	"github.com/brennie/spaghetti/options"
 	"github.com/brennie/spaghetti/tt"
 )
 
@@ -43,14 +44,14 @@ type crossoverRequest struct {
 // channel is the channel the island should use to communicate with the
 // controller. The channel returned is the channel the controller should use to
 // communicate with the i.
-func newIsland(id, nSlaves int, inst *tt.Instance, toParent chan<- message, verbose bool) chan<- message {
+func newIsland(id int, inst *tt.Instance, toParent chan<- message, opts options.SolveOptions) chan<- message {
 	fromParent := make(chan message, 5)
-	comm := make(chan message, 5)
+	fromChildren := make(chan message, 5)
 
 	i := &island{
 		parent{
-			comm,
-			make([]chan<- message, nSlaves),
+			fromChildren,
+			make([]chan<- message, opts.NSlaves),
 		},
 		child{
 			id,
@@ -58,11 +59,11 @@ func newIsland(id, nSlaves int, inst *tt.Instance, toParent chan<- message, verb
 			toParent,
 		},
 		inst,
-		verbose,
+		opts.Verbose,
 	}
 
-	for child := 0; child < nSlaves; child++ {
-		i.toChildren[child] = newSlave(id, child, inst, comm, verbose)
+	for child := 0; child < opts.NSlaves; child++ {
+		i.toChildren[child] = newSlave(id, child, inst, fromChildren, opts)
 	}
 
 	go i.run()
@@ -122,7 +123,7 @@ func (i *island) run() {
 				if value.Less(topValue) {
 					i.log("received solnMsgType: value was better")
 
-					i.sendToParent(solnMsgType, best, value)
+					i.sendToParent(solnMsgType, value, best)
 					topValue = value
 
 					for child := range i.toChildren {

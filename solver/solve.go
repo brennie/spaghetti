@@ -19,29 +19,38 @@
 package solver
 
 import (
-	"io"
 	"log"
 	"os"
 
+	"github.com/brennie/spaghetti/options"
 	"github.com/brennie/spaghetti/solver/hpga"
 	"github.com/brennie/spaghetti/tt"
 )
 
-// Attempt to solve the instance located in the given filename.
-func Solve(filename string, output io.Writer, islands, slaves int, verbose bool, timeout int) {
-	file, err := os.Open(filename)
+// Solve a timetabling instance with an HPGA.
+func Solve(opts options.SolveOptions) {
+	instFile, err := os.Open(opts.Instance)
 	if err != nil {
 		log.Fatalf("Could not %s\n", err)
 	}
+	defer instFile.Close()
 
-	inst, err := tt.Parse(file)
-	file.Close()
+	solnFile, err := os.Create(opts.Solution)
+	if err != nil {
+		log.Fatalf("Could not %s\n", err)
+	}
+	defer solnFile.Close()
+
+	inst, err := tt.Parse(instFile)
 
 	if err != nil {
-		log.Fatalf("Could not parse %s: %s\n", filename, err)
+		log.Fatalf("Could not parse %s: %s\n", opts.Instance, err)
 	}
 
-	soln := hpga.Run(islands, slaves, inst, verbose, timeout)
+	log.Printf("Using seed %d\n", opts.Seed)
 
-	soln.Write(output)
+	soln, value := hpga.Run(inst, opts)
+
+	log.Printf("Writing solution with value %s to file %s\n", value, opts.Solution)
+	soln.Write(solnFile)
 }

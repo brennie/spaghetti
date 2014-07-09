@@ -22,13 +22,9 @@ import (
 	"log"
 	"math/rand"
 
+	"github.com/brennie/spaghetti/options"
 	"github.com/brennie/spaghetti/solver/hpga/population"
 	"github.com/brennie/spaghetti/tt"
-)
-
-const (
-	pMutate = 5      // The probability of a mutation is 5%
-	pLocal  = 5 + 75 // The probability of a local crossover is 75%
 )
 
 // A slave is a child of an island.
@@ -52,7 +48,7 @@ func (s *slave) log(format string, args ...interface{}) {
 // Create a new slave with the given id. The given channel is the channel the
 // island should use to communicate with the controller. The channel returned
 // is the channel the controller should use to communicate with the island.
-func newSlave(island int, id int, inst *tt.Instance, toParent chan<- message, verbose bool) chan<- message {
+func newSlave(island int, id int, inst *tt.Instance, toParent chan<- message, opts options.SolveOptions) chan<- message {
 	fromParent := make(chan message, 5)
 	s := &slave{
 		child{
@@ -62,12 +58,12 @@ func newSlave(island int, id int, inst *tt.Instance, toParent chan<- message, ve
 		},
 		island,
 		inst,
-		verbose,
+		opts.Verbose,
 		tt.Value{0, 0},
 		nil,
 	}
 
-	go s.run()
+	go s.run(opts.MinPop, opts.MaxPop)
 
 	return fromParent
 }
@@ -98,13 +94,13 @@ func (s *slave) handleMessage(msg message) (shouldExit bool) {
 }
 
 // Run the slave.
-func (s *slave) run() {
+func (s *slave) run(minPop, maxPop int) {
 	// Receive the topValue-valued solution message from the island.
 	topValue := (<-s.fromParent).(valueMessage).value
 
 	s.log("generating population...")
 
-	s.pop = population.New(s.inst)
+	s.pop = population.New(s.inst, minPop, maxPop)
 
 	s.log("finished generating population")
 
@@ -112,7 +108,7 @@ func (s *slave) run() {
 		topValue = value
 		s.sendToParent(solnMsgType, value, best.Assignments())
 
-		s.log("found new best-valued solution: (%d,%d)", value.Distance, value.Fitness)
+		s.log("found new best-valued solution: (%s)", value)
 	}
 
 	for {
@@ -127,7 +123,7 @@ func (s *slave) run() {
 
 		prob := rand.Intn(99) + 1 // [1, 100]
 
-		if prob < pLocal {
+		if prob < pLocal+pMutate {
 			var individual *tt.Solution
 
 			if prob < pMutate {
@@ -199,7 +195,7 @@ func (s *slave) run() {
 
 			if value.Less(topValue) {
 				topValue = value
-				s.log("result of crossover is a best-valued solution: (%d, %d)", value.Distance, value.Fitness)
+				s.log("result of crossover is a best-valued solution: (%s)", value)
 			}
 
 		}

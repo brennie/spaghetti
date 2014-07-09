@@ -23,17 +23,18 @@ import (
 	"log"
 	"os"
 
+	"github.com/brennie/spaghetti/options"
 	"github.com/brennie/spaghetti/tt"
 )
 
-func Check(instance, solution string) {
-	instFile, err := os.Open(instance)
+func Check(opts options.CheckOptions) {
+	instFile, err := os.Open(opts.Instance)
 	if err != nil {
 		log.Fatalf("Could not %s\n", err.Error())
 	}
 	defer instFile.Close()
 
-	solnFile, err := os.Open(solution)
+	solnFile, err := os.Open(opts.Solution)
 	if err != nil {
 		log.Fatalf("Could not %s\n", err.Error())
 	}
@@ -41,12 +42,12 @@ func Check(instance, solution string) {
 
 	inst, err := tt.Parse(instFile)
 	if err != nil {
-		log.Fatalf("Could not parse %s: %s\n", instance, err.Error())
+		log.Fatalf("Could not parse %s: %s\n", opts.Instance, err.Error())
 	}
 
 	soln, err := inst.ParseSolution(solnFile)
 	if err != nil {
-		log.Fatalf("Could not parse %s: %s\n", solution, err.Error())
+		log.Fatalf("Could not parse %s: %s\n", opts.Solution, err.Error())
 	}
 
 	fmt.Printf("Distance to feasibility: %d\nSoft Constraint Violations: %d\n",

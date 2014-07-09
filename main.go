@@ -18,143 +18,27 @@
 package main
 
 import (
-	cryptoRand "crypto/rand"
 	"log"
-	"math"
-	"math/big"
-	"math/rand"
-	"os"
-	"runtime"
-	"runtime/pprof"
-	"strconv"
-
-	"github.com/docopt/docopt-go"
 
 	"github.com/brennie/spaghetti/checker"
 	"github.com/brennie/spaghetti/fetcher"
+	"github.com/brennie/spaghetti/options"
 	"github.com/brennie/spaghetti/solver"
 )
 
 func main() {
 	log.SetFlags(log.Ltime)
 
-	usage := `spaghetti: Applying Hierarchical Parallel Genetic Algorithms to solve the
-University Timetabling Problem.
+	opts := options.Parse()
 
-Usage:
-  spaghetti solve [options] <instance>
-  spaghetti check <instance> <solution>
-  spaghetti fetch [<directory>]
-  spaghetti -h | --help
-  spaghetti --version
+	switch opts.Mode() {
+	case options.CheckMode:
+		checker.Check(opts.(options.CheckOptions))
 
-Options:  
-  -h --help         Show this information.
-  --islands <n>     Set the number of islands [default: 3].
-  --maxprocs <n>    Set GOMAXPROCS to the given value instead of the number of CPUs.
-  --profile <file>  Collect profiling information in the given file. 
-  --seed <seed>     Specify the seed for the random number generator.
-  --slaves <n>      Set the number of slaves per island [default: 3].
-  --timeout <n>     Set the timeout time in minutes [default: 30].
-  --verbose         Turn on event logging.
-  --version         Show version information.
-  --output <file>   Write the solution to the given file instead of stdout.`
+	case options.FetchMode:
+		fetcher.Fetch(opts.(options.FetchOptions))
 
-	arguments, err := docopt.Parse(usage, nil, true, "spaghetti v0.6", false)
-
-	if err != nil {
-		log.Fatalf("Could not parse arguments: %s\n", err.Error())
-	}
-
-	if arguments["solve"].(bool) {
-		filename := arguments["<instance>"].(string)
-
-		islands, err := strconv.Atoi(arguments["--islands"].(string))
-
-		if err != nil {
-			log.Fatalf("Invalid value for --islands: %s\n", err)
-		} else if islands < 2 {
-			log.Fatal("Invalid value for --islands: value must be at least 2")
-		}
-
-		slaves, err := strconv.Atoi(arguments["--slaves"].(string))
-
-		if err != nil {
-			log.Fatalf("Invalid value for --slaves: %s\n", err)
-		} else if slaves < 2 {
-			log.Fatal("Invalid value for --slaves: value must be at least 2")
-		}
-
-		verbose := arguments["--verbose"].(bool)
-
-		timeout, err := strconv.Atoi(arguments["--timeout"].(string))
-
-		if err != nil {
-			log.Fatalf("Invalid value for --timeout: %s\n", err)
-		}
-
-		if arguments["--maxprocs"] != nil {
-			maxprocs, err := strconv.Atoi(arguments["--maxprocs"].(string))
-
-			if err != nil {
-				log.Fatalf("Invalid value for --maxprocs: %s\n", err)
-			} else if maxprocs > runtime.NumCPU() {
-				runtime.GOMAXPROCS(runtime.NumCPU())
-			} else if maxprocs > 0 {
-				runtime.GOMAXPROCS(maxprocs)
-			}
-		} else {
-			runtime.GOMAXPROCS(runtime.NumCPU())
-		}
-
-		output := os.Stdout
-		if arguments["--output"] != nil {
-			output, err = os.Create(arguments["--output"].(string))
-
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			defer output.Close()
-		}
-
-		if arguments["--profile"] != nil {
-			profile, err := os.Create(arguments["--profile"].(string))
-
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			pprof.StartCPUProfile(profile)
-			defer profile.Close()
-			defer pprof.StopCPUProfile()
-		}
-
-		if arguments["--seed"] != nil {
-			seed, err := strconv.ParseInt(arguments["--seed"].(string), 10, 64)
-
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			rand.Seed(seed)
-		} else {
-			seed, err := cryptoRand.Int(cryptoRand.Reader, big.NewInt(math.MaxInt64))
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			log.Printf("Using seed: %d\n", seed.Int64())
-			rand.Seed(seed.Int64())
-		}
-
-		solver.Solve(filename, output, islands, slaves, verbose, timeout)
-	} else if arguments["check"].(bool) {
-		instance := arguments["<instance>"].(string)
-		solution := arguments["<solution>"].(string)
-
-		checker.Check(instance, solution)
-	} else {
-		fetcher.Fetch(arguments["<directory>"])
+	case options.SolveMode:
+		solver.Solve(opts.(options.SolveOptions))
 	}
 }

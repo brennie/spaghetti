@@ -20,15 +20,11 @@ package population
 
 import (
 	"container/heap"
+	"fmt"
 	"math/rand"
 
 	"github.com/brennie/spaghetti/solver/heuristics"
 	"github.com/brennie/spaghetti/tt"
-)
-
-const (
-	MaxSize = 150 // Maximum number of individuals in a population
-	MinSize = 100 // Minimum number of individuals in a population
 )
 
 // An individual in the population
@@ -43,15 +39,25 @@ type popHeap []individual
 
 // A population.
 type Population struct {
-	heap popHeap // The actual heap with population members.
+	heap    popHeap // The actual heap with population members.
+	minSize int     // The minimum number of individuals in the population.
+	maxSize int     // The maximum number of individuals in the population.
 }
 
-// Generate a population of size MinSize using the random variable order
+// Generate a population of size minSize using the random variable order
 // heuristic.
-func New(inst *tt.Instance) (p *Population) {
-	p = &Population{make(popHeap, MinSize, MaxSize)}
+func New(inst *tt.Instance, minSize, maxSize int) (p *Population) {
+	if maxSize <= minSize {
+		panic(fmt.Sprintf("population.New: maxSize (%d) <= minSize (%d)", maxSize, minSize))
+	}
 
-	for i := 0; i < MinSize; i++ {
+	p = &Population{
+		make(popHeap, minSize, maxSize),
+		minSize,
+		maxSize,
+	}
+
+	for i := 0; i < minSize; i++ {
 		p.heap[i].soln = inst.NewSolution()
 		heuristics.RandomVariableOrdering(p.heap[i].soln)
 		p.heap[i].value = p.heap[i].soln.Value()
@@ -108,7 +114,7 @@ func (p *Population) Size() int {
 
 // Do selection so that the population has at most MinSize members.
 func (p *Population) Select() {
-	if p.Size() <= MinSize {
+	if p.Size() <= p.minSize {
 		return
 	}
 
@@ -118,7 +124,7 @@ func (p *Population) Select() {
 	// reverse it).
 	oldLen := p.Size()
 	copy := p.heap[:]
-	for i, j := 0, oldLen-1; i < MinSize; i, j = i+1, j-1 {
+	for i, j := 0, oldLen-1; i < p.minSize; i, j = i+1, j-1 {
 		// heap.Pop will only return the *tt.Solution part of the underlying
 		// individual. Hence we copy the value before popping so that we can
 		// save it and put it in the appropriate place without re-calculating
@@ -138,20 +144,20 @@ func (p *Population) Select() {
 	}
 
 	// Nil all pointers that are used in the no-longer-needed solutions.
-	for i := MinSize; i < oldLen; i++ {
+	for i := p.minSize; i < oldLen; i++ {
 		p.heap[i].soln.Free()
 		p.heap[i].soln = nil
 	}
 
 	// We can drop all the rest of the elements so that we only have a heap of
 	// MinSize elements.
-	p.heap = p.heap[0:MinSize]
+	p.heap = p.heap[0:p.minSize]
 }
 
 // Insert a member into the population. If the population is full, do selection
 // first.
 func (p *Population) Insert(soln *tt.Solution) {
-	if p.Size() == MaxSize {
+	if p.Size() == p.maxSize {
 		p.Select()
 	}
 

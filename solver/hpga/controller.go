@@ -20,8 +20,11 @@ package hpga
 import (
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 	"time"
 
+	"github.com/brennie/spaghetti/options"
 	"github.com/brennie/spaghetti/solver/heuristics"
 	"github.com/brennie/spaghetti/tt"
 )
@@ -35,20 +38,20 @@ type controller struct {
 
 // Create a new controller. There will be nIslands islands, each with nSlaves
 // slaves.
-func newController(nIslands, nSlaves int, inst *tt.Instance, verbose bool) *controller {
-	comm := make(chan message, 5)
+func newController(inst *tt.Instance, opts options.SolveOptions) *controller {
+	fromChildren := make(chan message, 5)
 
 	c := &controller{
 		parent{
-			comm,
-			make([]chan<- message, nIslands),
+			fromChildren,
+			make([]chan<- message, opts.NIslands),
 		},
 		inst,
-		verbose,
+		opts.Verbose,
 	}
 
-	for i := 0; i < nIslands; i++ {
-		c.parent.toChildren[i] = newIsland(i, nSlaves, inst, comm, verbose)
+	for i := 0; i < opts.NIslands; i++ {
+		c.parent.toChildren[i] = newIsland(i, inst, fromChildren, opts)
 	}
 
 	return c
@@ -63,7 +66,10 @@ func (c *controller) log(format string, args ...interface{}) {
 }
 
 // Run the controller.
-func (c *controller) run(timeout int) *tt.Solution {
+func (c *controller) run(timeout int) (*tt.Solution, tt.Value) {
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt)
+
 	top := c.inst.NewSolution() // The top-valued solution over the whole HPGA.
 
 	heuristics.MostConstrainedOrdering(top)
@@ -102,8 +108,12 @@ msgLoop:
 			c.stop()
 			c.log("received finMsgType from all islands: exiting")
 			break msgLoop
+
+		case <-signals:
+			log.Println("caught interrupt")
+			break msgLoop
 		}
 	}
 
-	return top
+	return top, topValue
 }
