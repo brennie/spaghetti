@@ -1,4 +1,4 @@
-// hpgatt: Hierarchical Parallel Genetic Algorithm for Timetabling
+// spaghetti: Hierarchical Parallel Genetic Algorithm for Timetabling
 // Copyright (C) 2014  Barret Rennie
 //
 // This program is free software: you can redistribute it and/or modify

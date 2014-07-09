@@ -1,4 +1,4 @@
-// hpgatt: Hierarchical Parallel Genetic Algorithm for Timetabling
+// spaghetti: Hierarchical Parallel Genetic Algorithm for Timetabling
 // Copyright (C) 2014  Barret Rennie
 //
 // This program is free software: you can redistribute it and/or modify
@@ -74,7 +74,8 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 
 	inst.rooms = make([]room, inst.nRooms)
 	inst.events = make([]event, inst.nEvents)
-	inst.students = make([]map[int]bool, inst.nStudents)
+
+	students := make([]map[int]bool, inst.nStudents)
 
 	for event := range inst.events {
 		inst.events[event].id = event
@@ -86,8 +87,8 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 		inst.events[event].exclude = make(map[int]bool)
 	}
 
-	for student := range inst.students {
-		inst.students[student] = make(map[int]bool)
+	for student := range students {
+		students[student] = make(map[int]bool)
 	}
 
 	for room := range inst.rooms {
@@ -106,7 +107,7 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 
 	// There is one line for each student and each event to determine if that
 	// student attends the event.
-	for student := range inst.students {
+	for student := range students {
 		for event := range inst.events {
 			var attends bool
 
@@ -116,7 +117,7 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 			}
 
 			if attends {
-				inst.students[student][event] = true
+				students[student][event] = true
 				inst.events[event].students[student] = true
 			}
 
@@ -218,7 +219,7 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 	// share a student cannot occur at the same time).
 	for event := range inst.events {
 		for student := range inst.events[event].students {
-			for other := range inst.students[student] {
+			for other := range students[student] {
 				if event == other {
 					continue
 				}
