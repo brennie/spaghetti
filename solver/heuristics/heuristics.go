@@ -21,8 +21,8 @@ import (
 	"container/heap"
 	"math/rand"
 
-	"github.com/brennie/spaghetti/pqueue"
 	"github.com/brennie/spaghetti/tt"
+	"github.com/brennie/spaghetti/tt/pqueue"
 )
 
 // Do most constrained variable first search to filla s much of the domains of
