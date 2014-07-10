@@ -31,8 +31,9 @@ import (
 type island struct {
 	parent
 	child
-	inst    *tt.Instance // The timetabling instance.
-	verbose bool         // Determines if events should be logged.
+	inst     *tt.Instance // The timetabling instance.
+	verbose  bool         // Determines if events should be logged.
+	topValue tt.Value     // The best value seen thus far.
 }
 
 type crossoverRequest struct {
@@ -60,6 +61,7 @@ func newIsland(id int, inst *tt.Instance, toParent chan<- message, opts options.
 		},
 		inst,
 		opts.Verbose,
+		tt.Value{-1, -1},
 	}
 
 	for child := 0; child < opts.NSlaves; child++ {
@@ -81,12 +83,12 @@ func (i *island) log(format string, args ...interface{}) {
 
 // Run the island.
 func (i *island) run() {
-	topValue := (<-i.fromParent).(valueMessage).value
+	i.topValue = (<-i.fromParent).(valueMessage).value
 
 	crossovers := make(map[int]crossoverRequest)
 
 	for child := range i.toChildren {
-		i.sendToChild(child, valueMsgType, topValue)
+		i.sendToChild(child, valueMsgType, i.topValue)
 	}
 
 	for {
@@ -96,19 +98,19 @@ func (i *island) run() {
 			switch msg.MsgType() {
 			case stopMsgType:
 				i.log("received stopMsgType; sending stop to slaves")
-				i.stop()
+				i.stopChildren()
 				i.log("received finMsgType from all slaves; exiting")
 				i.fin()
 				return
 
 			case valueMsgType:
-				if value := msg.(valueMessage).value; value.Less(topValue) {
+				if value := msg.(valueMessage).value; value.Less(i.topValue) {
 					i.log("received valueMsgType: value was better")
 
-					topValue = value
+					i.topValue = value
 
 					for child := range i.toChildren {
-						i.sendToChild(child, valueMsgType, topValue)
+						i.sendToChild(child, valueMsgType, i.topValue)
 					}
 				} else {
 					i.log("received valueMsgType: value was worse")
@@ -120,15 +122,15 @@ func (i *island) run() {
 			case solnMsgType:
 				best, value := msg.(solnMessage).soln, msg.(solnMessage).value
 
-				if value.Less(topValue) {
+				if value.Less(i.topValue) {
 					i.log("received solnMsgType: value was better")
 
 					i.sendToParent(solnMsgType, value, best)
-					topValue = value
+					i.topValue = value
 
 					for child := range i.toChildren {
 						if child != msg.Source() {
-							i.sendToChild(child, valueMsgType, topValue)
+							i.sendToChild(child, valueMsgType, i.topValue)
 						}
 					}
 				} else {
@@ -175,8 +177,8 @@ func (i *island) run() {
 					i.sendToChild(crossovers[id].origin, solnMsgType, child.Value(), child.Assignments())
 					i.log("sent crossover result of crossover %d to slave(%d,%d)", id, i.id, crossovers[id].origin)
 
-					if value.Less(topValue) {
-						topValue = value
+					if value.Less(i.topValue) {
+						i.topValue = value
 						for child := range i.toChildren {
 							if child != crossovers[id].origin {
 								i.sendToChild(child, valueMsgType, value)
@@ -188,6 +190,36 @@ func (i *island) run() {
 				} else {
 					i.log("received a crossover id (%d) that is not currently in use from slave(%d,%d)", id, i.id, msg.Source())
 				}
+			}
+		}
+	}
+}
+
+// Send a stopMsgType message to all slaves under the island and wait for a
+// finMsgType message from each of them. If a solnMsgType message arrives, it
+// will be processed as normal (i.e., forwarded to the controller if the
+// associated value is better than i.top).
+func (i *island) stopChildren() {
+	for child := range i.toChildren {
+		i.sendToChild(child, stopMsgType)
+	}
+
+	finished := make(map[int]bool)
+
+	for len(finished) != len(i.toChildren) {
+		msg := <-i.fromChildren
+
+		switch msg.MsgType() {
+		case finMsgType:
+			finished[msg.Source()] = true
+
+		case solnMsgType:
+			value := msg.(solnMessage).value
+
+			if value.Less(i.topValue) {
+				soln := msg.(solnMessage).soln
+				i.topValue = value
+				i.sendToParent(solnMsgType, value, soln)
 			}
 		}
 	}

@@ -67,25 +67,7 @@ func (c *child) sendToParent(msgType msgType, args ...interface{}) {
 	chanSend(c.toParent, c.id, msgType, args...)
 }
 
-// Send the stop message to all children and wait for all fo them to reply with
-// a fin message.
-func (p *parent) stop() {
-	for child := range p.toChildren {
-		p.sendToChild(child, stopMsgType)
-	}
-
-	finished := make(map[int]bool)
-
-	for len(finished) != len(p.toChildren) {
-		msg := <-p.fromChildren
-
-		if msg.MsgType() == finMsgType {
-			finished[msg.Source()] = true
-		}
-	}
-}
-
-// Run the hpga.
+// Run the HPGA.
 func Run(inst *tt.Instance, opts options.SolveOptions) (*tt.Solution, tt.Value) {
 	return newController(inst, opts).run(opts.Timeout)
 }
