@@ -80,9 +80,14 @@ func (s *slave) handleMessage(msg message) (shouldExit bool) {
 			s.log("received valueMsgType: value was worse")
 		}
 
+	case gmReqMsgType:
+		s.sendToParent(gmReplyMsgType, s.pop.Pick().Assignments())
+		s.log("received gmReqMsgType; replied with solution")
+
 	case solnReqMsgType:
 		id := msg.(solnReqMessage).id
 		s.sendToParent(solnReplyMsgType, id, s.pop.Pick().Assignments())
+		s.log("received solnReqMsgType; replied with solution")
 
 	case stopMsgType:
 		s.log("received stopMsgType; exiting")
@@ -149,8 +154,10 @@ func (s *slave) run(minPop, maxPop int) {
 
 				s.log("performed a mutation")
 			} else {
-				mother := s.pop.Pick().Assignments()
-				father := s.pop.Pick().Assignments()
+				m := s.pop.Pick()
+				f := s.pop.Pick()
+				mother := m.Assignments()
+				father := f.Assignments()
 
 				individual = s.inst.NewSolution()
 
@@ -158,7 +165,6 @@ func (s *slave) run(minPop, maxPop int) {
 
 				crossover(mother, father, individual, chromosome)
 
-				s.log("performed a local crossover")
 			}
 
 			s.pop.Insert(individual)

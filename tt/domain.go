@@ -46,8 +46,10 @@ func (d *Domain) HasConflict(rat Rat) bool {
 // Add a conflict entry and remove the assignment from the set of entries.
 func (domain *Domain) addConflict(rat Rat, conflict int) {
 	if domain.inBaseDomain(rat) {
-		domain.conflicts[rat][conflict] = true
-		domain.Entries.Remove(rat)
+		if _, hasKey := domain.conflicts[rat][conflict]; !hasKey {
+			domain.conflicts[rat][conflict] = true
+			domain.Entries.Remove(rat)
+		}
 	}
 }
 

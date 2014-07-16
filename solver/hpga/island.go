@@ -21,10 +21,13 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"time"
 
 	"github.com/brennie/spaghetti/options"
 	"github.com/brennie/spaghetti/tt"
 )
+
+const gmInterval = 5 * time.Minute
 
 // An island is both a parent (slaves run under it) and a child (it runs under
 // the controller).
@@ -34,6 +37,7 @@ type island struct {
 	inst     *tt.Instance // The timetabling instance.
 	verbose  bool         // Determines if events should be logged.
 	topValue tt.Value     // The best value seen thus far.
+	gmTimer  *time.Timer  // A timer for the GM operation.
 }
 
 type crossoverRequest struct {
@@ -62,6 +66,7 @@ func newIsland(id int, inst *tt.Instance, toParent chan<- message, opts options.
 		inst,
 		opts.Verbose,
 		tt.Value{-1, -1},
+		nil,
 	}
 
 	for child := 0; child < opts.NSlaves; child++ {
@@ -91,6 +96,8 @@ func (i *island) run() {
 		i.sendToChild(child, valueMsgType, i.topValue)
 	}
 
+	i.gmTimer = time.NewTimer(gmInterval)
+
 	for {
 		select {
 		case msg := <-i.fromParent:
@@ -119,6 +126,11 @@ func (i *island) run() {
 
 		case msg := <-i.fromChildren:
 			switch msg.MsgType() {
+			case gmReplyMsgType:
+				individual := msg.(gmReplyMessage).soln
+				i.log("received gmReplyMsgType from slave(%d.%d)", i.id, msg.Source())
+				go i.runGM(individual, msg.Source())
+
 			case solnMsgType:
 				best, value := msg.(solnMessage).soln, msg.(solnMessage).value
 
@@ -146,7 +158,7 @@ func (i *island) run() {
 					id = rand.Int()
 				}
 
-				i.log("received a crossover request from slave(%d,%d); assigned id %d", i.id, request.Source(), id)
+				i.log("received a crossover request from slave(%d.%d); assigned id %d", i.id, request.Source(), id)
 
 				crossovers[id] = crossoverRequest{request.Source(), request.soln}
 
@@ -160,7 +172,7 @@ func (i *island) run() {
 				}
 
 				i.sendToChild(other, solnReqMsgType, id)
-				i.log("sent solution request %d to slave(%d,%d)", id, i.id, other)
+				i.log("sent solution request %d to slave(%d.%d)", id, i.id, other)
 
 			case solnReplyMsgType:
 				id := msg.(solnReplyMessage).id
@@ -170,12 +182,12 @@ func (i *island) run() {
 					child := i.inst.NewSolution()
 					chromosome := rand.Intn(i.inst.NEvents())
 
-					i.log("received a solnReplyMsgType with id %d from slave(%d,%d); doing crossover", id, i.id, msg.Source())
+					i.log("received a solnReplyMsgType with id %d from slave(%d.%d); doing crossover", id, i.id, msg.Source())
 
 					crossover(crossovers[id].mother, reply.soln, child, chromosome)
 					value := child.Value()
 					i.sendToChild(crossovers[id].origin, solnMsgType, child.Value(), child.Assignments())
-					i.log("sent crossover result of crossover %d to slave(%d,%d)", id, i.id, crossovers[id].origin)
+					i.log("sent crossover result of crossover %d to slave(%d.%d)", id, i.id, crossovers[id].origin)
 
 					if value.Less(i.topValue) {
 						i.topValue = value
@@ -188,11 +200,32 @@ func (i *island) run() {
 
 					delete(crossovers, id)
 				} else {
-					i.log("received a crossover id (%d) that is not currently in use from slave(%d,%d)", id, i.id, msg.Source())
+					i.log("received a crossover id (%d) that is not currently in use from slave(%d.%d)", id, i.id, msg.Source())
 				}
 			}
+
+		case <-i.gmTimer.C:
+			child := rand.Intn(len(i.toChildren))
+
+			i.sendToChild(child, gmReqMsgType, child, -1)
+			i.log("requested solution for GM from slave(%d.%d)", i.id, child)
 		}
 	}
+}
+
+// Run the genetic modification operation on the given individual.
+func (i *island) runGM(individual []tt.Rat, child int) {
+	soln := i.inst.SolutionFromRats(individual)
+
+	chromosome := rand.Intn(i.inst.NEvents())
+
+	gm(soln, chromosome)
+
+	i.sendToChild(child, solnMsgType, soln.Value(), soln.Assignments())
+	soln.Free()
+	i.log("sent result of GM to slave(%d.%d)", i.id, child)
+
+	i.gmTimer.Reset(gmInterval)
 }
 
 // Send a stopMsgType message to all slaves under the island and wait for a

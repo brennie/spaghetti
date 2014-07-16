@@ -288,6 +288,21 @@ func (s *Solution) RatAt(eventIndex int) Rat {
 	}
 }
 
+// Unassign all events that reduce the domain size of the given event.
+func (s *Solution) RemoveConflicts(eventIndex int) {
+	if eventIndex > s.inst.nEvents {
+		return
+	}
+
+	domain := &s.Domains[eventIndex]
+
+	for rat := range domain.conflicts {
+		for conflict := range domain.conflicts[rat] {
+			s.Unassign(conflict)
+		}
+	}
+}
+
 // Shrink the domains after an assignment.
 func (s *Solution) shrink(eventIndex int) {
 	event := &s.inst.events[eventIndex]

@@ -32,6 +32,8 @@ const (
 	xoverReqMsgType                 // A slave requesting a crossover from an island.
 	solnReqMsgType                  // An island requesting a solution from a slave.
 	solnReplyMsgType                // A slave replying to an island for a crossover.
+	gmReqMsgType                    // A request for a solution to perform the GM operator.
+	gmReplyMsgType                  // A reply to a gmReqMsgType message.
 )
 
 // A message passed in the HPGA.
@@ -91,21 +93,34 @@ type solnReqMessage struct {
 	id int // The crossover id.
 }
 
+// A message containing a solution to use for the genetic modification operator.
+type gmReplyMessage struct {
+	baseMessage
+	soln []tt.Rat // The solution to modifiy.
+}
+
 // Send a generic message along the channel.
 //
 //     Message Type   |      Arguments
 // -------------------+-----------------------
-//     valueMsgType   | tt.Value
-//      solnMsgType   | tt.Value, []tt.Rat
-//  solnReplyMsgType  | int, []tt.Rat
-//   solnReqMsgType   | int
-//  xoverReqMsgType   | []tt.Rat
+//      gmReqMsgType  |
+//      finMsgType    |
+//      stopMsgType   |
+//      valueMsgType  |  tt.Value
+//    gmReplyMsgType  |  []tt.Rat
+//       solnMsgType  |  tt.Value, []tt.Rat
+//  solnReplyMsgType  |  int, []tt.Rat
+//    solnReqMsgType  |  int
+//   xoverReqMsgType  |  []tt.Rat
 func chanSend(c chan<- message, source int, msgType msgType, args ...interface{}) {
 	base := baseMessage{source, msgType}
 
 	switch msgType {
 	case valueMsgType:
 		c <- valueMessage{base, args[0].(tt.Value)}
+
+	case gmReplyMsgType:
+		c <- gmReplyMessage{base, args[0].([]tt.Rat)}
 
 	case solnMsgType:
 		c <- solnMessage{base, args[0].(tt.Value), args[1].([]tt.Rat)}
