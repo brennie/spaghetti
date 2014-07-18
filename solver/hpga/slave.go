@@ -71,26 +71,26 @@ func newSlave(island int, id int, inst *tt.Instance, toParent chan<- message, op
 func (s *slave) handleMessage(msg message) (shouldExit bool) {
 	shouldExit = false
 
-	switch msg.MsgType() {
-	case valueMsgType:
-		if value := msg.(valueMessage).value; value.Less(s.topValue) {
+	switch msg.messageType() {
+	case valueMessageType:
+		if value := msg.content.(valueMessage).value; value.Less(s.topValue) {
 			s.topValue = value
-			s.log("received valueMsgType: value was better")
+			s.log("received valueMessageType: value was better")
 		} else {
-			s.log("received valueMsgType: value was worse")
+			s.log("received valueMessageType: value was worse")
 		}
 
-	case gmReqMsgType:
-		s.sendToParent(gmReplyMsgType, s.pop.Pick().Assignments())
-		s.log("received gmReqMsgType; replied with solution")
+	case gmRequestMessageType:
+		s.sendToParent(gmReplyMessage{s.pop.Pick().Assignments()})
+		s.log("received gmRequestMessageType; replied with solution")
 
-	case solnReqMsgType:
-		id := msg.(solnReqMessage).id
-		s.sendToParent(solnReplyMsgType, id, s.pop.Pick().Assignments())
-		s.log("received solnReqMsgType; replied with solution")
+	case solutionRequestMessageType:
+		id := msg.content.(solutionRequestMessage).id
+		s.sendToParent(solutionReplyMessage{id, s.pop.Pick().Assignments()})
+		s.log("received solutionRequestMessageType; replied with solution")
 
-	case stopMsgType:
-		s.log("received stopMsgType; exiting")
+	case stopMessageType:
+		s.log("received stopMessageType; exiting")
 		shouldExit = true
 		s.fin()
 	}
@@ -101,7 +101,7 @@ func (s *slave) handleMessage(msg message) (shouldExit bool) {
 // Run the slave.
 func (s *slave) run(minPop, maxPop int) {
 	// Receive the topValue-valued solution message from the island.
-	topValue := (<-s.fromParent).(valueMessage).value
+	topValue := (<-s.fromParent).content.(valueMessage).value
 
 	s.log("generating population...")
 
@@ -111,7 +111,7 @@ func (s *slave) run(minPop, maxPop int) {
 
 	if best, value := s.pop.Best(); value.Less(topValue) {
 		topValue = value
-		s.sendToParent(solnMsgType, value, best.Assignments())
+		s.sendToParent(solutionMessage{best.Assignments(), value})
 
 		s.log("found new best-valued solution: (%s)", value)
 	}
@@ -175,27 +175,27 @@ func (s *slave) run(minPop, maxPop int) {
 
 				s.log("found new best-valued solution: (%d,%d)", value.Distance, value.Fitness)
 
-				s.sendToParent(solnMsgType, individual.Assignments(), value)
+				s.sendToParent(solutionMessage{individual.Assignments(), value})
 			}
 
 		} else {
-			s.sendToParent(xoverReqMsgType, s.pop.Pick().Assignments())
+			s.sendToParent(crossoverRequestMessage{s.pop.Pick().Assignments()})
 			s.log("sent crossover request to island(%d); awaiting reply", s.island)
 
-			// We wait for a solnMsgType message and process messages in the
+			// We wait for a solutionMessageType message and process messages in the
 			// mean time. We do this as try to not overload the island with
 			// messages.
 			msg := <-s.fromParent
-			for msg.MsgType() != solnMsgType {
+			for msg.messageType() != solutionMessageType {
 				if s.handleMessage(msg) {
 					return
 				}
 				msg = <-s.fromParent
 			}
 
-			s.log("received solnMsgType from island(%d); inserting into population", s.island)
-			soln := msg.(solnMessage).soln
-			value := msg.(solnMessage).value
+			s.log("received solutionMessageType from island(%d); inserting into population", s.island)
+			soln := msg.content.(solutionMessage).soln
+			value := msg.content.(solutionMessage).value
 
 			s.pop.Insert(s.inst.SolutionFromRats(soln))
 

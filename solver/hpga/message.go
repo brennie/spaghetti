@@ -17,124 +17,98 @@
 
 package hpga
 
-import "github.com/brennie/spaghetti/tt"
+import (
+	"github.com/brennie/spaghetti/tt"
+	"log"
+)
 
 // The message type discriminator. We don't do a switch on the actual type
 // of the interface ebcause the baseMessage can carry different types of
 // messages.
-type msgType int
+type messageType int
 
 const (
-	stopMsgType      msgType = iota // The message telling the children to stop.
-	valueMsgType                    // A message containing a valuation.
-	solnMsgType                     // A solution message.
-	finMsgType                      // The message saying the child has finished.
-	xoverReqMsgType                 // A slave requesting a crossover from an island.
-	solnReqMsgType                  // An island requesting a solution from a slave.
-	solnReplyMsgType                // A slave replying to an island for a crossover.
-	gmReqMsgType                    // A request for a solution to perform the GM operator.
-	gmReplyMsgType                  // A reply to a gmReqMsgType message.
+	crossoverRequestMessageType messageType = iota // A message containing a crossover request from a slave.
+	finMessageType                                 // The message saying the child has finished.
+	gmRequestMessageType                           // A request for a solution to perform the GM operator.
+	gmReplyMessageType                             // A reply to a gmRequestMessageType message.
+	solutionMessageType                            // A message containing a solution.
+	solutionRequestMessageType                     // An island requesting a solution from a slave.
+	solutionReplyMessageType                       // A slave replying to an island for a crossover.
+	stopMessageType                                // The message telling the children to stop.
+	valueMessageType                               // A message containing a valuation.
 )
 
-// A message passed in the HPGA.
-type message interface {
-	Source() int      // Who sent the message
-	MsgType() msgType // The type of the message
+// A message
+type message struct {
+	source  int            // The source of the message
+	content messageContent // The content of the message
 }
 
-// The base message type that all message types should extend.
-type baseMessage struct {
-	source  int     // The source of the message.
-	msgType msgType // The type of the message.
+func (m *message) messageType() messageType {
+	return m.content.messageType()
 }
 
-// Get the source of the message.
-func (msg baseMessage) Source() int {
-	return msg.source
+func send(c chan<- message, s int, m messageContent) {
+	c <- message{s, m}
 }
 
-// Get the type of the message.
-func (msg baseMessage) MsgType() msgType {
-	return msg.msgType
-}
-
-// A message containing a solution valuation.
-type valueMessage struct {
-	baseMessage
-	value tt.Value // The value of the solution.
-}
-
-// A message from a slave requesting a crossover with another slave.
-type xoverReqMessage struct {
-	baseMessage
-	soln []tt.Rat // The solution to crossover with.
-}
-
-// A message from a slave replying to an island for a crossover with another
-// slave.
-type solnReplyMessage struct {
-	baseMessage
-	id   int      // The crossover id.
-	soln []tt.Rat // The solution to crossover with.
-}
-
-// A message carrying an actual solution. When sent to a child, this message
-// carries the blank solution template. When sent to a parent, this contains
-// an actual solution that is better than the current global one.
-type solnMessage struct {
-	baseMessage
-	value tt.Value
-	soln  []tt.Rat
-}
-
-// A message requesting a solution from a slave.
-type solnReqMessage struct {
-	baseMessage
-	id int // The crossover id.
-}
-
-// A message containing a solution to use for the genetic modification operator.
-type gmReplyMessage struct {
-	baseMessage
-	soln []tt.Rat // The solution to modifiy.
-}
-
-// Send a generic message along the channel.
-//
-//     Message Type   |      Arguments
-// -------------------+-----------------------
-//      gmReqMsgType  |
-//      finMsgType    |
-//      stopMsgType   |
-//      valueMsgType  |  tt.Value
-//    gmReplyMsgType  |  []tt.Rat
-//       solnMsgType  |  tt.Value, []tt.Rat
-//  solnReplyMsgType  |  int, []tt.Rat
-//    solnReqMsgType  |  int
-//   xoverReqMsgType  |  []tt.Rat
-func chanSend(c chan<- message, source int, msgType msgType, args ...interface{}) {
-	base := baseMessage{source, msgType}
-
-	switch msgType {
-	case valueMsgType:
-		c <- valueMessage{base, args[0].(tt.Value)}
-
-	case gmReplyMsgType:
-		c <- gmReplyMessage{base, args[0].([]tt.Rat)}
-
-	case solnMsgType:
-		c <- solnMessage{base, args[0].(tt.Value), args[1].([]tt.Rat)}
-
-	case solnReplyMsgType:
-		c <- solnReplyMessage{base, args[0].(int), args[1].([]tt.Rat)}
-
-	case solnReqMsgType:
-		c <- solnReqMessage{base, args[0].(int)}
-
-	case xoverReqMsgType:
-		c <- xoverReqMessage{base, args[0].([]tt.Rat)}
-
-	default:
-		c <- base
+func (p *parent) sendToChild(child int, m messageContent) {
+	if child >= len(p.toChildren) {
+		log.Fatalf("invalid child: %d", child)
 	}
+
+	send(p.toChildren[child], parentID, m)
 }
+
+func (c *child) sendToParent(m messageContent) {
+	send(c.toParent, c.id, m)
+}
+
+// The content of a message is an arbitrary data structure that implements the
+// messageType() method.
+type messageContent interface {
+	messageType() messageType
+}
+
+type crossoverRequestMessage struct{ soln []tt.Rat }
+
+func (_ crossoverRequestMessage) messageType() messageType { return crossoverRequestMessageType }
+
+type finMessage struct{}
+
+func (_ finMessage) messageType() messageType { return finMessageType }
+
+type gmRequestMessage struct{}
+
+func (_ gmRequestMessage) messageType() messageType { return gmRequestMessageType }
+
+type gmReplyMessage struct{ soln []tt.Rat }
+
+func (_ gmReplyMessage) messageType() messageType { return gmReplyMessageType }
+
+type solutionMessage struct {
+	soln  []tt.Rat
+	value tt.Value
+}
+
+func (_ solutionMessage) messageType() messageType { return solutionMessageType }
+
+type solutionRequestMessage struct{ id int }
+
+func (_ solutionRequestMessage) messageType() messageType { return solutionRequestMessageType }
+
+type solutionReplyMessage struct {
+	id   int
+	soln []tt.Rat
+}
+
+func (_ solutionReplyMessage) messageType() messageType { return solutionReplyMessageType }
+
+type stopMessage struct{}
+
+func (_ stopMessage) messageType() messageType { return stopMessageType }
+
+type valueMessage struct{ value tt.Value }
+
+func (_ valueMessage) messageType() messageType { return valueMessageType }

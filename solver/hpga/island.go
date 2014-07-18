@@ -88,12 +88,12 @@ func (i *island) log(format string, args ...interface{}) {
 
 // Run the island.
 func (i *island) run() {
-	i.topValue = (<-i.fromParent).(valueMessage).value
+	i.topValue = (<-i.fromParent).content.(valueMessage).value
 
 	crossovers := make(map[int]crossoverRequest)
 
 	for child := range i.toChildren {
-		i.sendToChild(child, valueMsgType, i.topValue)
+		i.sendToChild(child, valueMessage{i.topValue})
 	}
 
 	i.gmTimer = time.NewTimer(gmInterval)
@@ -102,55 +102,55 @@ func (i *island) run() {
 		select {
 		case msg := <-i.fromParent:
 
-			switch msg.MsgType() {
-			case stopMsgType:
-				i.log("received stopMsgType; sending stop to slaves")
+			switch msg.messageType() {
+			case stopMessageType:
+				i.log("received stopMessageType; sending stop to slaves")
 				i.stopChildren()
-				i.log("received finMsgType from all slaves; exiting")
+				i.log("received finMessageType from all slaves; exiting")
 				i.fin()
 				return
 
-			case valueMsgType:
-				if value := msg.(valueMessage).value; value.Less(i.topValue) {
-					i.log("received valueMsgType: value was better")
+			case valueMessageType:
+				if value := msg.content.(valueMessage).value; value.Less(i.topValue) {
+					i.log("received valueMessageType: value was better")
 
 					i.topValue = value
 
 					for child := range i.toChildren {
-						i.sendToChild(child, valueMsgType, i.topValue)
+						i.sendToChild(child, valueMessage{i.topValue})
 					}
 				} else {
-					i.log("received valueMsgType: value was worse")
+					i.log("received valueMessageType: value was worse")
 				}
 			}
 
 		case msg := <-i.fromChildren:
-			switch msg.MsgType() {
-			case gmReplyMsgType:
-				individual := msg.(gmReplyMessage).soln
-				i.log("received gmReplyMsgType from slave(%d.%d)", i.id, msg.Source())
-				go i.runGM(individual, msg.Source())
+			switch msg.messageType() {
+			case gmReplyMessageType:
+				individual := msg.content.(gmReplyMessage).soln
+				i.log("received gmReplyMessageType from slave(%d.%d)", i.id, msg.source)
+				go i.runGM(individual, msg.source)
 
-			case solnMsgType:
-				best, value := msg.(solnMessage).soln, msg.(solnMessage).value
+			case solutionMessageType:
+				best, value := msg.content.(solutionMessage).soln, msg.content.(solutionMessage).value
 
 				if value.Less(i.topValue) {
-					i.log("received solnMsgType: value was better")
+					i.log("received solutionMessageType: value was better")
 
-					i.sendToParent(solnMsgType, value, best)
+					i.sendToParent(solutionMessage{best, value})
 					i.topValue = value
 
 					for child := range i.toChildren {
-						if child != msg.Source() {
-							i.sendToChild(child, valueMsgType, i.topValue)
+						if child != msg.source {
+							i.sendToChild(child, valueMessage{i.topValue})
 						}
 					}
 				} else {
-					i.log("received solnMsgType: value was worse")
+					i.log("received solutionMessageType: value was worse")
 				}
 
-			case xoverReqMsgType:
-				request := msg.(xoverReqMessage)
+			case crossoverRequestMessageType:
+				request := msg.content.(crossoverRequestMessage)
 
 				// Generate a currently unused crossover id
 				id := rand.Int()
@@ -158,56 +158,56 @@ func (i *island) run() {
 					id = rand.Int()
 				}
 
-				i.log("received a crossover request from slave(%d.%d); assigned id %d", i.id, request.Source(), id)
+				i.log("received a crossover request from slave(%d.%d); assigned id %d", i.id, msg.source, id)
 
-				crossovers[id] = crossoverRequest{request.Source(), request.soln}
+				crossovers[id] = crossoverRequest{msg.source, request.soln}
 
 				// We generate a random number in [0, N-1) as there are N-1 other
 				// slaves under the i. We can then map all n >= nSource to
 				// n+1 to get a uniform probability that any slave that is not the
 				// source is picked.
 				other := rand.Intn(len(i.toChildren) - 1)
-				if other >= msg.Source() {
+				if other >= msg.source {
 					other++
 				}
 
-				i.sendToChild(other, solnReqMsgType, id)
+				i.sendToChild(other, solutionRequestMessage{id})
 				i.log("sent solution request %d to slave(%d.%d)", id, i.id, other)
 
-			case solnReplyMsgType:
-				id := msg.(solnReplyMessage).id
+			case solutionReplyMessageType:
+				id := msg.content.(solutionReplyMessage).id
 
 				if _, used := crossovers[id]; used {
-					reply := msg.(solnReplyMessage)
+					reply := msg.content.(solutionReplyMessage)
 					child := i.inst.NewSolution()
 					chromosome := rand.Intn(i.inst.NEvents())
 
-					i.log("received a solnReplyMsgType with id %d from slave(%d.%d); doing crossover", id, i.id, msg.Source())
+					i.log("received a solutionReplyMessageType with id %d from slave(%d.%d); doing crossover", id, i.id, msg.source)
 
 					crossover(crossovers[id].mother, reply.soln, child, chromosome)
 					value := child.Value()
-					i.sendToChild(crossovers[id].origin, solnMsgType, child.Value(), child.Assignments())
+					i.sendToChild(crossovers[id].origin, solutionMessage{child.Assignments(), child.Value()})
 					i.log("sent crossover result of crossover %d to slave(%d.%d)", id, i.id, crossovers[id].origin)
 
 					if value.Less(i.topValue) {
 						i.topValue = value
 						for child := range i.toChildren {
 							if child != crossovers[id].origin {
-								i.sendToChild(child, valueMsgType, value)
+								i.sendToChild(child, valueMessage{value})
 							}
 						}
 					}
 
 					delete(crossovers, id)
 				} else {
-					i.log("received a crossover id (%d) that is not currently in use from slave(%d.%d)", id, i.id, msg.Source())
+					i.log("received a crossover id (%d) that is not currently in use from slave(%d.%d)", id, i.id, msg.source)
 				}
 			}
 
 		case <-i.gmTimer.C:
 			child := rand.Intn(len(i.toChildren))
 
-			i.sendToChild(child, gmReqMsgType, child, -1)
+			i.sendToChild(child, gmRequestMessage{})
 			i.log("requested solution for GM from slave(%d.%d)", i.id, child)
 		}
 	}
@@ -221,20 +221,20 @@ func (i *island) runGM(individual []tt.Rat, child int) {
 
 	gm(soln, chromosome)
 
-	i.sendToChild(child, solnMsgType, soln.Value(), soln.Assignments())
+	i.sendToChild(child, solutionMessage{soln.Assignments(), soln.Value()})
 	soln.Free()
 	i.log("sent result of GM to slave(%d.%d)", i.id, child)
 
 	i.gmTimer.Reset(gmInterval)
 }
 
-// Send a stopMsgType message to all slaves under the island and wait for a
-// finMsgType message from each of them. If a solnMsgType message arrives, it
+// Send a stopMessageType message to all slaves under the island and wait for a
+// finMessageType message from each of them. If a solutionMessageType message arrives, it
 // will be processed as normal (i.e., forwarded to the controller if the
 // associated value is better than i.top).
 func (i *island) stopChildren() {
 	for child := range i.toChildren {
-		i.sendToChild(child, stopMsgType)
+		i.sendToChild(child, stopMessage{})
 	}
 
 	finished := make(map[int]bool)
@@ -242,17 +242,17 @@ func (i *island) stopChildren() {
 	for len(finished) != len(i.toChildren) {
 		msg := <-i.fromChildren
 
-		switch msg.MsgType() {
-		case finMsgType:
-			finished[msg.Source()] = true
+		switch msg.messageType() {
+		case finMessageType:
+			finished[msg.source] = true
 
-		case solnMsgType:
-			value := msg.(solnMessage).value
+		case solutionMessageType:
+			value := msg.content.(solutionMessage).value
 
 			if value.Less(i.topValue) {
-				soln := msg.(solnMessage).soln
+				soln := msg.content.(solutionMessage).soln
 				i.topValue = value
-				i.sendToParent(solnMsgType, value, soln)
+				i.sendToParent(solutionMessage{soln, value})
 			}
 		}
 	}

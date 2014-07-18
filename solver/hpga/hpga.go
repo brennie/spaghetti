@@ -19,8 +19,6 @@
 package hpga
 
 import (
-	"log"
-
 	"github.com/brennie/spaghetti/options"
 	"github.com/brennie/spaghetti/tt"
 )
@@ -48,23 +46,7 @@ type child struct {
 
 // Send the fin message to the parent.
 func (c *child) fin() {
-	c.sendToParent(finMsgType)
-}
-
-// Send a message from a parent to one of its children. See the chanSend
-// for more details.
-func (p *parent) sendToChild(child int, msgType msgType, args ...interface{}) {
-	if child >= len(p.toChildren) {
-		log.Fatalf("invalid child: %d", child)
-	}
-
-	chanSend(p.toChildren[child], parentID, msgType, args...)
-}
-
-// Send a message from the child to its parent. See the chanSend function for
-// more details.
-func (c *child) sendToParent(msgType msgType, args ...interface{}) {
-	chanSend(c.toParent, c.id, msgType, args...)
+	c.sendToParent(finMessage{})
 }
 
 // Run the HPGA.

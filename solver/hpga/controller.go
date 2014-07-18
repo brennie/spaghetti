@@ -80,7 +80,7 @@ func (c *controller) run(timeout int) (*tt.Solution, tt.Value) {
 	c.topValue = c.top.Value() // The value of the top-valued solution over the whole HPGA.
 
 	for child := range c.toChildren {
-		c.sendToChild(child, valueMsgType, c.topValue)
+		c.sendToChild(child, valueMessage{c.topValue})
 	}
 
 msgLoop:
@@ -88,29 +88,30 @@ msgLoop:
 		timeout := time.After(time.Duration(timeout) * time.Minute)
 		select {
 		case msg := <-c.fromChildren:
-			switch msg.MsgType() {
-			case solnMsgType:
-				best, value := msg.(solnMessage).soln, msg.(solnMessage).value
+			switch msg.messageType() {
+			case solutionMessageType:
+				soln := msg.content.(solutionMessage).soln
+				value := msg.content.(solutionMessage).value
 
 				if value.Less(c.topValue) {
-					c.log("received solnMsgType: value was better")
+					c.log("received solutionMessageType: value was better")
 					c.topValue = value
 					c.top.Free()
-					c.top = c.inst.SolutionFromRats(best)
+					c.top = c.inst.SolutionFromRats(soln)
 
 					for child := range c.toChildren {
-						if child != msg.Source() {
-							c.sendToChild(child, valueMsgType, c.topValue)
+						if child != msg.source {
+							c.sendToChild(child, valueMessage{c.topValue})
 						}
 					}
 				} else {
-					c.log("received solnMsgType: value was worse")
+					c.log("received solutionMessageType: value was worse")
 				}
 			}
 		case <-timeout:
-			c.log("timeout: sending stopMsgType to all islands")
+			c.log("timeout: sending stopMessageType to all islands")
 			c.stopChildren()
-			c.log("received finMsgType from all islands: exiting")
+			c.log("received finMessageType from all islands: exiting")
 			break msgLoop
 
 		case <-signals:
@@ -122,13 +123,13 @@ msgLoop:
 	return c.top, c.topValue
 }
 
-// Send a stopMsgType message to all islands under the controller and wait for
-// a finMsgType message from each of them. If a solnMsgType message arrives,
+// Send a stopMessageType message to all islands under the controller and wait for
+// a finMessageType message from each of them. If a solutionMessageType message arrives,
 // it will be processed as normal (i.e., updating c.top and c.topValue if
 // better than the current solution).
 func (c *controller) stopChildren() {
 	for child := range c.toChildren {
-		c.sendToChild(child, stopMsgType)
+		c.sendToChild(child, stopMessage{})
 	}
 
 	finished := make(map[int]bool)
@@ -136,15 +137,15 @@ func (c *controller) stopChildren() {
 	for len(finished) != len(c.toChildren) {
 		msg := <-c.fromChildren
 
-		switch msg.MsgType() {
-		case finMsgType:
-			finished[msg.Source()] = true
+		switch msg.messageType() {
+		case finMessageType:
+			finished[msg.source] = true
 
-		case solnMsgType:
-			value := msg.(solnMessage).value
+		case solutionMessageType:
+			value := msg.content.(solutionMessage).value
 
 			if value.Less(c.topValue) {
-				soln := msg.(solnMessage).soln
+				soln := msg.content.(solutionMessage).soln
 				c.topValue = value
 				c.top.Free()
 				c.top = c.inst.SolutionFromRats(soln)
