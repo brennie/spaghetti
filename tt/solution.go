@@ -184,6 +184,13 @@ func (s *Solution) Free() {
 		s.events[ratIndex] = -1
 	}
 
+	// Reset the attendance matrix
+	for student := range s.attendance {
+		for time := range s.attendance[student] {
+			s.attendance[student][time] = false
+		}
+	}
+
 	// Reset the domains of the solution.
 	for event := range s.Domains {
 		domain := &s.Domains[event]
