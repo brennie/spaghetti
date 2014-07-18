@@ -15,27 +15,29 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package set
+package set_test
 
 import (
 	"math/rand"
 	"sort"
 	"testing"
+
+	"github.com/brennie/spaghetti/set"
 )
 
-func intCmp(a, b interface{}) Order {
+func intCmp(a, b interface{}) set.Order {
 	aVal := a.(int)
 	bVal := b.(int)
 
 	switch {
 	case aVal > bVal:
-		return Gt
+		return set.Gt
 
 	case aVal < bVal:
-		return Lt
+		return set.Lt
 
 	default:
-		return Eq
+		return set.Eq
 	}
 }
 
@@ -43,7 +45,7 @@ const testSize = 1000
 
 func TestSet(t *testing.T) {
 	slice := make([]int, testSize)
-	set := New(intCmp)
+	set := set.New(intCmp)
 	for i := range slice {
 		slice[i] = rand.Int()
 		set.Insert(slice[i])
