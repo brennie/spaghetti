@@ -236,9 +236,10 @@ func (s *Solution) TryAssign(eventIndex int, rat Rat) (fitness int) {
 	// the domains involved. This will allow for a correct result from Fitness
 	// without the cost of re-calculating domains.
 	if oldEvent != -1 {
+		oldEventTime := s.rats[oldEvent].Time
 		// Unassign oldEvent without calling unshrink.
 		for student := range s.inst.events[oldEvent].students {
-			s.attendance[student][oldEvent] = false
+			s.attendance[student][oldEventTime] = false
 		}
 	}
 
@@ -276,8 +277,9 @@ func (s *Solution) TryAssign(eventIndex int, rat Rat) (fitness int) {
 	// If there previously was an event assigned to rat, we reschedule it in
 	// the timetable.
 	if oldEvent != -1 {
+		oldEventTime := s.rats[oldEvent].Time
 		for student := range s.inst.events[oldEvent].students {
-			s.attendance[student][oldEvent] = true
+			s.attendance[student][oldEventTime] = true
 		}
 	}
 
