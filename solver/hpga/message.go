@@ -45,14 +45,17 @@ type message struct {
 	content messageContent // The content of the message
 }
 
+// Determine the message type via the content's type.
 func (m *message) messageType() messageType {
 	return m.content.messageType()
 }
 
+// Send a message on the given channel.
 func send(c chan<- message, s int, m messageContent) {
 	c <- message{s, m}
 }
 
+// Send a message to the given child.
 func (p *parent) sendToChild(child int, m messageContent) {
 	if child >= len(p.toChildren) {
 		log.Fatalf("invalid child: %d", child)
@@ -61,6 +64,7 @@ func (p *parent) sendToChild(child int, m messageContent) {
 	send(p.toChildren[child], parentID, m)
 }
 
+// Send a message to the child's parent.
 func (c *child) sendToParent(m messageContent) {
 	send(c.toParent, c.id, m)
 }
@@ -71,44 +75,71 @@ type messageContent interface {
 	messageType() messageType
 }
 
-type crossoverRequestMessage struct{ soln []tt.Rat }
+// A crossover request from a slave to an island. This is used for foreign crossovers.
+type crossoverRequestMessage struct {
+	soln []tt.Rat // The solution to use in the crossover.
+}
 
+// Get the messageType of a crossoverRequestMessage.
 func (_ crossoverRequestMessage) messageType() messageType { return crossoverRequestMessageType }
 
+// A message indicating that a child has finished.
 type finMessage struct{}
 
+// Get the messageType of a finMessage.
 func (_ finMessage) messageType() messageType { return finMessageType }
 
+// A request for a solution for genetic modification.
 type gmRequestMessage struct{}
 
+// Get the messageType of a gmRequestMessage.
 func (_ gmRequestMessage) messageType() messageType { return gmRequestMessageType }
 
-type gmReplyMessage struct{ soln []tt.Rat }
+// A response to a gmRequestMessage with a solution.
+type gmReplyMessage struct {
+	soln []tt.Rat // The solution to modify
+}
 
+// Get the messageType of a gmReplyMessage.
 func (_ gmReplyMessage) messageType() messageType { return gmReplyMessageType }
 
+// A message containing a solution and its value.
 type solutionMessage struct {
-	soln  []tt.Rat
-	value tt.Value
+	soln  []tt.Rat // The solution as a list of assignments.
+	value tt.Value // The value of the solution.
 }
 
+// Get the messageType of a solutionMessage.
 func (_ solutionMessage) messageType() messageType { return solutionMessageType }
 
-type solutionRequestMessage struct{ id int }
-
-func (_ solutionRequestMessage) messageType() messageType { return solutionRequestMessageType }
-
-type solutionReplyMessage struct {
-	id   int
-	soln []tt.Rat
+// A solution request from an island to a slave with a given identifier.
+type solutionRequestMessage struct {
+	id int // The request identifier.
 }
 
+// Get the messageType of a solutionRequestMessage.
+func (_ solutionRequestMessage) messageType() messageType { return solutionRequestMessageType }
+
+// A reply to a solutionRequestMessage.
+type solutionReplyMessage struct {
+	id   int      // The id from the solutionRequestMessage.
+	soln []tt.Rat // The solution.
+}
+
+// Get the messageType of a solutionReplyMessage.
 func (_ solutionReplyMessage) messageType() messageType { return solutionReplyMessageType }
 
+// A message indicating that a child should stop.
 type stopMessage struct{}
 
+// Get the messageType of a stopMessage.
 func (_ stopMessage) messageType() messageType { return stopMessageType }
 
-type valueMessage struct{ value tt.Value }
+// A message containing a solution's value. This is sent to inform of the
+// best-known solution's value.
+type valueMessage struct {
+	value tt.Value // The best-known solution's value
+}
 
+// Get the messageType of a valueMessage.
 func (_ valueMessage) messageType() messageType { return valueMessageType }
