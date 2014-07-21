@@ -18,8 +18,9 @@
 package hpga
 
 import (
-	"github.com/brennie/spaghetti/tt"
 	"log"
+
+	"github.com/brennie/spaghetti/tt"
 )
 
 // The message type discriminator. We don't do a switch on the actual type
