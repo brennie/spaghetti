@@ -48,9 +48,7 @@ func New(inst *tt.Instance, minSize, maxSize int) (p *Population) {
 	}
 
 	for i := 0; i < minSize; i++ {
-		soln := inst.NewSolution()
-		heuristics.RandomVariableOrdering(p.heap[i].soln)
-		p.heap[i] = newIndividual(soln)
+		p.heap[i] = newIndividual(heuristics.RandomVariableOrdering(inst.NewSolution()))
 	}
 
 	heap.Init(&p.heap)

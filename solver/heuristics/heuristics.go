@@ -27,7 +27,7 @@ import (
 
 // Do most constrained variable first search to filla s much of the domains of
 // the solution as possible.
-func MostConstrainedOrdering(soln *tt.Solution) {
+func MostConstrainedOrdering(soln *tt.Solution) *tt.Solution {
 	pq := pqueue.New(soln.Domains)
 
 	for pq.Len() > 0 {
@@ -36,14 +36,16 @@ func MostConstrainedOrdering(soln *tt.Solution) {
 		pq.Update()
 	}
 
-	return
+	return soln
 }
 
 // Use random variable ordering to fill as much of the domains of the solution
 // as possible. We do not try to find the best element in the domain to assign;
 // we only try to fill up the domain as fast as possible.
-func RandomVariableOrdering(soln *tt.Solution) {
+func RandomVariableOrdering(soln *tt.Solution) *tt.Solution {
 	for _, event := range rand.Perm(len(soln.Domains)) {
 		soln.Best(event)
 	}
+
+	return soln
 }

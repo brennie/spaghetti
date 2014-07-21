@@ -74,10 +74,11 @@ func (c *controller) run(timeout int) (*tt.Solution, tt.Value) {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
-	c.top = c.inst.NewSolution() // The top-valued solution over the whole HPGA.
-
-	heuristics.MostConstrainedOrdering(c.top)
-	c.topValue = c.top.Value() // The value of the top-valued solution over the whole HPGA.
+	// Use most-constrained variable ordering to find an upper bound for the
+	// HPGA to work towards. This way we will only try to update the best-
+	// known solution when this one is beat.
+	c.top = heuristics.MostConstrainedOrdering(c.inst.NewSolution())
+	c.topValue = c.top.Value()
 
 	for child := range c.toChildren {
 		c.sendToChild(child, valueMessage{c.topValue})
