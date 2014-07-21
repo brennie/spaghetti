@@ -53,3 +53,13 @@ type Individual struct {
 	Success     *Success   // The success ratio of the individual.
 	Value       tt.Value   // The value of the solution.
 }
+
+// Report the result of a crossover.
+func (i *Individual) didCrossover(childValue tt.Value) {
+	i.Success.mutex.Lock()
+	if childValue.Less(i.Value) {
+		i.Success.successes++
+	}
+	i.Success.crossovers++
+	i.Success.mutex.Unlock()
+}

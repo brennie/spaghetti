@@ -40,13 +40,3 @@ func (s *Success) Ratio() (ratio float64) {
 
 	return
 }
-
-// Report the result of a crossover.
-func (s *Success) Crossover(succeeded bool) {
-	s.mutex.Lock()
-	if succeeded {
-		s.successes++
-	}
-	s.crossovers++
-	s.mutex.Unlock()
-}
