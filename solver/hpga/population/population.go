@@ -48,9 +48,9 @@ func New(inst *tt.Instance, minSize, maxSize int) (p *Population) {
 	}
 
 	for i := 0; i < minSize; i++ {
-		p.heap[i].soln = inst.NewSolution()
+		soln := inst.NewSolution()
 		heuristics.RandomVariableOrdering(p.heap[i].soln)
-		p.heap[i].value = p.heap[i].soln.Value()
+		p.heap[i] = newIndividual(soln)
 	}
 
 	heap.Init(&p.heap)
@@ -98,6 +98,8 @@ func (p *Population) Select() {
 	for i := p.minSize; i < oldLen; i++ {
 		p.heap[i].soln.Free()
 		p.heap[i].soln = nil
+		p.heap[i].success = nil
+		p.heap[i] = nil
 	}
 
 	// We can drop all the rest of the elements so that we only have a heap of
@@ -112,7 +114,7 @@ func (p *Population) Insert(soln *tt.Solution) {
 		p.Select()
 	}
 
-	heap.Push(&p.heap, individual{soln, soln.Value(), &Success{}})
+	heap.Push(&p.heap, newIndividual(soln))
 }
 
 // Determine the best member of the population. A solution picked this way must

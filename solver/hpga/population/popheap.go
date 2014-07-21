@@ -19,7 +19,7 @@ package population
 
 // The actual population heap. This is unexported so that the Push and Pop
 // methods cannot be used except by this package.
-type popHeap []individual
+type popHeap []*individual
 
 // Push an element onto the heap. Use Insert instead.
 func (heap *popHeap) Push(element interface{}) {
@@ -30,7 +30,7 @@ func (heap *popHeap) Push(element interface{}) {
 	// We don't have to check this type assertion because Push can only be
 	// called through Population.Insert (as popHeap.Push isn't exported) which
 	// is guaranteed to call this function with an individual.
-	*heap = append(*heap, element.(individual))
+	*heap = append(*heap, element.(*individual))
 }
 
 // Remove an element from the population.

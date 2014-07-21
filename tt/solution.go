@@ -115,12 +115,11 @@ func (s *Solution) AssignmentQuality() (quality []Value) {
 				// event is a part of.
 				blockStart := time
 				consecutive := 0
-				
+
 				for blockStart > startOfDay && s.attendance[student][blockStart-1] != -1 {
 					blockStart--
 				}
-				for t := blockStart; t <= endOfDay && s.attendance[student][blockStart] {
-					t++
+				for t := blockStart; t <= endOfDay && s.attendance[student][blockStart] != -1; t++ {
 					consecutive++
 				}
 
@@ -150,6 +149,8 @@ func (s *Solution) AssignmentQuality() (quality []Value) {
 			}
 		}
 	}
+
+	return
 }
 
 // Determine the best Rat for the given event and assign it.

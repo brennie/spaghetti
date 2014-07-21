@@ -25,3 +25,31 @@ type individual struct {
 	value   tt.Value     // The corresponding value.
 	success *Success     // The success ratio of the individual.
 }
+
+// Create a new individual from the given solution.
+func newIndividual(soln *tt.Solution) *individual {
+	return &individual{
+		soln,
+		soln.Value(),
+		&Success{},
+	}
+}
+
+// Transform an *individual into an *Individual, so that it may be exported to
+// other packages.
+func (i *individual) export() *Individual {
+	return &Individual{
+		i.soln.Assignments(),
+		i.soln.AssignmentQuality(),
+		i.success,
+		i.value,
+	}
+}
+
+// An individual that can be crossed over
+type Individual struct {
+	Assignments []tt.Rat   // The assignments.
+	Quality     []tt.Value // The assignments' quality.
+	Success     *Success   // The success ratio of the individual.
+	Value       tt.Value   // The value of the solution.
+}
