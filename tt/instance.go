@@ -38,7 +38,7 @@ type Instance struct {
 func (inst *Instance) allocSolution() (s *Solution) {
 	s = &Solution{
 		inst,
-		make([][45]bool, inst.nStudents),
+		make([][45]int, inst.nStudents),
 		make([]int, inst.nEvents*NTimes),
 		make([]Rat, inst.nEvents),
 		make([]Domain, inst.nEvents),
@@ -50,6 +50,12 @@ func (inst *Instance) allocSolution() (s *Solution) {
 
 	for index := range s.events {
 		s.events[index] = -1
+	}
+
+	for student := range s.attendance {
+		for time := range s.attendance[student] {
+			s.attendance[student][time] = -1
+		}
 	}
 
 	for eventIndex := range s.Domains {

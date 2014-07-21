@@ -25,11 +25,11 @@ import (
 
 // A solution to an instance.
 type Solution struct {
-	inst       *Instance  // The problem instance.
-	attendance [][45]bool // Student attendance matrix.
-	events     []int      // Map each room and time to an event.
-	rats       []Rat      // Map each event to a room and time.
-	Domains    []Domain   // The domains.
+	inst       *Instance // The problem instance.
+	attendance [][45]int // Student attendance matrix.
+	events     []int     // Map each room and time to an event.
+	rats       []Rat     // Map each event to a room and time.
+	Domains    []Domain  // The domains.
 }
 
 // Retrieve the assignments of a solution as a copy. This is a lighter-weight
@@ -75,13 +75,13 @@ func (s *Solution) Assign(eventIndex int, rat Rat) {
 	if oldRat := s.rats[eventIndex]; oldRat.Assigned() {
 		s.events[oldRat.index()] = -1
 		for student := range event.students {
-			s.attendance[student][rat.Time] = true
-			s.attendance[student][oldRat.Time] = false
+			s.attendance[student][rat.Time] = eventIndex
+			s.attendance[student][oldRat.Time] = -1
 		}
 		s.unshrink(eventIndex, oldRat)
 	} else {
 		for student := range event.students {
-			s.attendance[student][rat.Time] = true
+			s.attendance[student][rat.Time] = eventIndex
 		}
 	}
 
@@ -89,6 +89,67 @@ func (s *Solution) Assign(eventIndex int, rat Rat) {
 	s.events[ratIndex] = eventIndex
 
 	s.shrink(eventIndex)
+}
+
+// Determine the quality of each assignment, as determined by the number of
+// soft constraints each event breaks.
+//
+// It is not the case that the solution value is the sum of the assignment
+// quality, as penalties will be counted for each event involved that violates
+// the constraint.
+func (s *Solution) AssignmentQuality() (quality []Value) {
+	quality = make([]Value, s.inst.nEvents)
+
+	for event := range quality {
+		nStudents := len(s.inst.events[event].students)
+
+		if !s.rats[event].Assigned() {
+			quality[event].Distance = nStudents
+		} else {
+			time := s.rats[event].Time
+			startOfDay := time - time%9
+			endOfDay := startOfDay + 8
+
+			for student := range s.attendance {
+				// First we find the number of consecutive events that the
+				// event is a part of.
+				blockStart := time
+				consecutive := 0
+				
+				for blockStart > startOfDay && s.attendance[student][blockStart-1] != -1 {
+					blockStart--
+				}
+				for t := blockStart; t <= endOfDay && s.attendance[student][blockStart] {
+					t++
+					consecutive++
+				}
+
+				if consecutive > 2 {
+					quality[event].Fitness += consecutive - 2
+				} else {
+					// Find the total number of events on the day.
+					count := 0
+					for t := startOfDay; t <= endOfDay; t++ {
+						if s.attendance[student][t] != -1 {
+							count++
+						}
+					}
+
+					// If the student only attends one class (i.e., `event'),
+					// then the penality is 1 per student.
+					if count == 1 {
+						quality[event].Fitness++
+					}
+				}
+			}
+
+			// If the event is scheduled at the end of the day, then the
+			// penalty is the number of students that would attend the event.
+			if time == endOfDay {
+				quality[event].Fitness += nStudents
+			}
+		}
+	}
 }
 
 // Determine the best Rat for the given event and assign it.
@@ -147,25 +208,23 @@ func (s *Solution) Fitness() (fit int) {
 			count := 0
 
 			for hour := 0; hour < 9; hour++ {
-				if s.attendance[student][day*9+hour] {
+				if s.attendance[student][day*9+hour] != -1 {
 					count++
 					consecutive++
-				} else {
-					if consecutive > 2 {
-						fit += consecutive - 2
-					}
 
+					if consecutive > 2 {
+						fit++
+					}
+				} else {
 					consecutive = 0
 				}
 			}
 
-			if consecutive > 2 {
-				fit += consecutive - 2
-			} else if count == 1 {
+			if count == 1 {
 				fit++
 			}
 
-			if s.attendance[student][day*9+8] {
+			if s.attendance[student][day*9+8] != -1 {
 				fit++
 			}
 		}
@@ -187,7 +246,7 @@ func (s *Solution) Free() {
 	// Reset the attendance matrix
 	for student := range s.attendance {
 		for time := range s.attendance[student] {
-			s.attendance[student][time] = false
+			s.attendance[student][time] = -1
 		}
 	}
 
@@ -239,7 +298,7 @@ func (s *Solution) TryAssign(eventIndex int, rat Rat) (fitness int) {
 		oldEventTime := s.rats[oldEvent].Time
 		// Unassign oldEvent without calling unshrink.
 		for student := range s.inst.events[oldEvent].students {
-			s.attendance[student][oldEventTime] = false
+			s.attendance[student][oldEventTime] = -1
 		}
 	}
 
@@ -248,12 +307,12 @@ func (s *Solution) TryAssign(eventIndex int, rat Rat) (fitness int) {
 	// if the event is currently unassigned, we can schedule it appropriately.
 	if oldRat.Assigned() && oldRat.Time != rat.Time {
 		for student := range event.students {
-			s.attendance[student][rat.Time] = true
-			s.attendance[student][oldRat.Time] = false
+			s.attendance[student][rat.Time] = eventIndex
+			s.attendance[student][oldRat.Time] = -1
 		}
 	} else if !oldRat.Assigned() {
 		for student := range event.students {
-			s.attendance[student][rat.Time] = true
+			s.attendance[student][rat.Time] = eventIndex
 		}
 	}
 
@@ -265,12 +324,12 @@ func (s *Solution) TryAssign(eventIndex int, rat Rat) (fitness int) {
 	// is unassigned, we unschedule it.
 	if oldRat.Assigned() && oldRat.Time != rat.Time {
 		for student := range event.students {
-			s.attendance[student][rat.Time] = false
-			s.attendance[student][oldRat.Time] = true
+			s.attendance[student][rat.Time] = -1
+			s.attendance[student][oldRat.Time] = s.events[oldRat.index()]
 		}
 	} else if !oldRat.Assigned() {
 		for student := range event.students {
-			s.attendance[student][rat.Time] = false
+			s.attendance[student][rat.Time] = -1
 		}
 	}
 
@@ -279,7 +338,7 @@ func (s *Solution) TryAssign(eventIndex int, rat Rat) (fitness int) {
 	if oldEvent != -1 {
 		oldEventTime := s.rats[oldEvent].Time
 		for student := range s.inst.events[oldEvent].students {
-			s.attendance[student][oldEventTime] = true
+			s.attendance[student][oldEventTime] = oldEvent
 		}
 	}
 
@@ -375,7 +434,7 @@ func (s *Solution) Unassign(eventIndex int) {
 
 	// Remove all entries from the attendance matrix.
 	for student := range event.students {
-		s.attendance[student][rat.Time] = false
+		s.attendance[student][rat.Time] = -1
 	}
 
 	s.rats[eventIndex] = badRat
