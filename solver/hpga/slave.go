@@ -84,10 +84,10 @@ func (s *slave) handleMessage(msg message) (shouldExit bool) {
 		s.sendToParent(gmReplyMessage{s.pop.PickSolution()})
 		s.log("received gmRequestMessageType; replied with solution")
 
-	case solutionRequestMessageType:
-		id := msg.content.(solutionRequestMessage).id
-		s.sendToParent(solutionReplyMessage{id, s.pop.PickSolution()})
-		s.log("received solutionRequestMessageType; replied with solution")
+	case individualRequestMessageType:
+		id := msg.content.(individualRequestMessage).id
+		s.sendToParent(individualReplyMessage{id, s.pop.PickIndividual()})
+		s.log("received individualRequestMessageType; replied with solution")
 
 	case stopMessageType:
 		s.log("received stopMessageType; exiting")
@@ -130,6 +130,7 @@ func (s *slave) run(minPop, maxPop int) {
 
 		if prob < pLocal+pMutate {
 			var individual *tt.Solution
+			var value tt.Value
 
 			if prob < pMutate {
 				individual = s.pop.RemoveOne()
@@ -150,23 +151,21 @@ func (s *slave) run(minPop, maxPop int) {
 						}
 					}
 					mutate(individual, chromosome)
+					value = individual.Value()
 				}
 
 				s.log("performed a mutation")
 			} else {
-				mother := s.pop.PickSolution()
-				father := s.pop.PickSolution()
+				mother := s.pop.PickIndividual()
+				father := s.pop.PickIndividual()
 
 				individual = s.inst.NewSolution()
 
-				chromosome := rand.Intn(s.inst.NEvents())
-
-				crossover(mother, father, individual, chromosome)
+				value = population.Crossover(mother, father, individual)
 
 			}
 
 			s.pop.Insert(individual)
-			value := individual.Value()
 
 			if value.Less(topValue) {
 				topValue = value
@@ -177,7 +176,7 @@ func (s *slave) run(minPop, maxPop int) {
 			}
 
 		} else {
-			s.sendToParent(crossoverRequestMessage{s.pop.PickSolution()})
+			s.sendToParent(crossoverRequestMessage{s.pop.PickIndividual()})
 			s.log("sent crossover request to island(%d); awaiting reply", s.island)
 
 			// We wait for a solutionMessageType message and process messages in the

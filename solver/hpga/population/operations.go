@@ -18,9 +18,11 @@
 package population
 
 import (
+	"container/heap"
 	"math/rand"
 
 	"github.com/brennie/spaghetti/tt"
+	"github.com/brennie/spaghetti/tt/pqueue"
 )
 
 type parentMask bool
@@ -31,7 +33,10 @@ const (
 )
 
 func Crossover(mother, father *Individual, child *tt.Solution) (childValue tt.Value) {
-	for _, event := range rand.Perm(len(mother.Assignments)) {
+	pq := pqueue.New(child.Domains)
+	for pq.Len() > 0 {
+		event := heap.Pop(pq).(int)
+
 		parent := mother
 		if mask(mother, father, event) == useFather {
 			parent = father
@@ -40,6 +45,8 @@ func Crossover(mother, father *Individual, child *tt.Solution) (childValue tt.Va
 		if rat := parent.Assignments[event]; rat.Assigned() && !child.Domains[event].HasConflict(rat) {
 			child.Assign(event, rat)
 		}
+
+		pq.Update()
 	}
 	childValue = child.Value()
 

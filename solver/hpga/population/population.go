@@ -48,7 +48,7 @@ func New(inst *tt.Instance, minSize, maxSize int) (p *Population) {
 	}
 
 	for i := 0; i < minSize; i++ {
-		p.heap[i] = newIndividual(heuristics.RandomVariableOrdering(inst.NewSolution()))
+		p.heap[i] = newIndividual(heuristics.RandomAssignment(inst.NewSolution()))
 	}
 
 	heap.Init(&p.heap)
@@ -126,6 +126,11 @@ func (p *Population) Best() (*tt.Solution, tt.Value) {
 // it, use RemoveOne followed by Insert.
 func (p *Population) PickSolution() []tt.Rat {
 	return p.heap[rand.Intn(p.Size())].soln.Assignments()
+}
+
+// Return an individual so that it may be crossed over.
+func (p *Population) PickIndividual() *Individual {
+	return p.heap[rand.Intn(p.Size())].export()
 }
 
 // Remove one solution from the population, chosen at random.

@@ -49,3 +49,18 @@ func RandomVariableOrdering(soln *tt.Solution) *tt.Solution {
 
 	return soln
 }
+
+// Randomly assign a solution by using a random variable ordering and picking
+// random domain entries in (non-empty) domains to assign to them.
+func RandomAssignment(soln *tt.Solution) *tt.Solution {
+	for _, event := range rand.Perm(len(soln.Domains)) {
+		if soln.Domains[event].Entries.Size() > 0 {
+			el := soln.Domains[event].Entries.First()
+			for offset := rand.Intn(soln.Domains[event].Entries.Size()); offset > 0; offset-- {
+				el = el.Next()
+			}
+			soln.Assign(event, el.Value().(tt.Rat))
+		}
+	}
+	return soln
+}

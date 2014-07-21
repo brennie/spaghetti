@@ -20,6 +20,7 @@ package hpga
 import (
 	"log"
 
+	"github.com/brennie/spaghetti/solver/hpga/population"
 	"github.com/brennie/spaghetti/tt"
 )
 
@@ -29,15 +30,15 @@ import (
 type messageType int
 
 const (
-	crossoverRequestMessageType messageType = iota // A message containing a crossover request from a slave.
-	finMessageType                                 // The message saying the child has finished.
-	gmRequestMessageType                           // A request for a solution to perform the GM operator.
-	gmReplyMessageType                             // A reply to a gmRequestMessageType message.
-	solutionMessageType                            // A message containing a solution.
-	solutionRequestMessageType                     // An island requesting a solution from a slave.
-	solutionReplyMessageType                       // A slave replying to an island for a crossover.
-	stopMessageType                                // The message telling the children to stop.
-	valueMessageType                               // A message containing a valuation.
+	crossoverRequestMessageType  messageType = iota // A message containing a crossover request from a slave.
+	finMessageType                                  // The message saying the child has finished.
+	gmRequestMessageType                            // A request for a solution to perform the GM operator.
+	gmReplyMessageType                              // A reply to a gmRequestMessageType message.
+	solutionMessageType                             // A message containing a solution.
+	individualRequestMessageType                    // An island requesting a solution from a slave.
+	individualReplyMessageType                      // A slave replying to an island for a crossover.
+	stopMessageType                                 // The message telling the children to stop.
+	valueMessageType                                // A message containing a valuation.
 )
 
 // A message
@@ -78,7 +79,7 @@ type messageContent interface {
 
 // A crossover request from a slave to an island. This is used for foreign crossovers.
 type crossoverRequestMessage struct {
-	soln []tt.Rat // The solution to use in the crossover.
+	individual *population.Individual // The individual to crossover with.
 }
 
 // Get the messageType of a crossoverRequestMessage.
@@ -113,22 +114,23 @@ type solutionMessage struct {
 // Get the messageType of a solutionMessage.
 func (_ solutionMessage) messageType() messageType { return solutionMessageType }
 
-// A solution request from an island to a slave with a given identifier.
-type solutionRequestMessage struct {
+// A solution request from an island to a slave with a given identifier. This
+// is used to request a solution for crossover from a slave.
+type individualRequestMessage struct {
 	id int // The request identifier.
 }
 
-// Get the messageType of a solutionRequestMessage.
-func (_ solutionRequestMessage) messageType() messageType { return solutionRequestMessageType }
+// Get the messageType of a individualRequestMessage.
+func (_ individualRequestMessage) messageType() messageType { return individualRequestMessageType }
 
-// A reply to a solutionRequestMessage.
-type solutionReplyMessage struct {
-	id   int      // The id from the solutionRequestMessage.
-	soln []tt.Rat // The solution.
+// A reply to a individualRequestMessage.
+type individualReplyMessage struct {
+	id         int                    // The id from the individualRequestMessage.
+	individual *population.Individual // The individual to crossover with.
 }
 
-// Get the messageType of a solutionReplyMessage.
-func (_ solutionReplyMessage) messageType() messageType { return solutionReplyMessageType }
+// Get the messageType of a individualReplyMessage.
+func (_ individualReplyMessage) messageType() messageType { return individualReplyMessageType }
 
 // A message indicating that a child should stop.
 type stopMessage struct{}

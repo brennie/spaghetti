@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/brennie/spaghetti/options"
+	"github.com/brennie/spaghetti/solver/hpga/population"
 	"github.com/brennie/spaghetti/tt"
 )
 
@@ -41,8 +42,8 @@ type island struct {
 }
 
 type crossoverRequest struct {
-	origin int      // The slave that requested the crossover.
-	mother []tt.Rat // The first parent to crossover with.
+	origin int                    // The slave that requested the crossover.
+	mother *population.Individual // The first parent to crossover with.
 }
 
 // Create a new island with the given id and number of slaves. The given
@@ -160,7 +161,7 @@ func (i *island) run() {
 
 				i.log("received a crossover request from slave(%d.%d); assigned id %d", i.id, msg.source, id)
 
-				crossovers[id] = crossoverRequest{msg.source, request.soln}
+				crossovers[id] = crossoverRequest{msg.source, request.individual}
 
 				// We generate a random number in [0, N-1) as there are N-1 other
 				// slaves under the i. We can then map all n >= nSource to
@@ -171,20 +172,19 @@ func (i *island) run() {
 					other++
 				}
 
-				i.sendToChild(other, solutionRequestMessage{id})
+				i.sendToChild(other, individualRequestMessage{id})
 				i.log("sent solution request %d to slave(%d.%d)", id, i.id, other)
 
-			case solutionReplyMessageType:
-				id := msg.content.(solutionReplyMessage).id
+			case individualReplyMessageType:
+				id := msg.content.(individualReplyMessage).id
 
 				if _, used := crossovers[id]; used {
-					reply := msg.content.(solutionReplyMessage)
+					reply := msg.content.(individualReplyMessage)
 					child := i.inst.NewSolution()
-					chromosome := rand.Intn(i.inst.NEvents())
 
-					i.log("received a solutionReplyMessageType with id %d from slave(%d.%d); doing crossover", id, i.id, msg.source)
+					i.log("received a individualReplyMessageType with id %d from slave(%d.%d); doing crossover", id, i.id, msg.source)
 
-					crossover(crossovers[id].mother, reply.soln, child, chromosome)
+					population.Crossover(crossovers[id].mother, reply.individual, child)
 					value := child.Value()
 					i.sendToChild(crossovers[id].origin, solutionMessage{child.Assignments(), child.Value()})
 					i.log("sent crossover result of crossover %d to slave(%d.%d)", id, i.id, crossovers[id].origin)
