@@ -81,12 +81,12 @@ func (s *slave) handleMessage(msg message) (shouldExit bool) {
 		}
 
 	case gmRequestMessageType:
-		s.sendToParent(gmReplyMessage{s.pop.Pick().Assignments()})
+		s.sendToParent(gmReplyMessage{s.pop.PickSolution()})
 		s.log("received gmRequestMessageType; replied with solution")
 
 	case solutionRequestMessageType:
 		id := msg.content.(solutionRequestMessage).id
-		s.sendToParent(solutionReplyMessage{id, s.pop.Pick().Assignments()})
+		s.sendToParent(solutionReplyMessage{id, s.pop.PickSolution()})
 		s.log("received solutionRequestMessageType; replied with solution")
 
 	case stopMessageType:
@@ -154,10 +154,8 @@ func (s *slave) run(minPop, maxPop int) {
 
 				s.log("performed a mutation")
 			} else {
-				m := s.pop.Pick()
-				f := s.pop.Pick()
-				mother := m.Assignments()
-				father := f.Assignments()
+				mother := s.pop.PickSolution()
+				father := s.pop.PickSolution()
 
 				individual = s.inst.NewSolution()
 
@@ -179,7 +177,7 @@ func (s *slave) run(minPop, maxPop int) {
 			}
 
 		} else {
-			s.sendToParent(crossoverRequestMessage{s.pop.Pick().Assignments()})
+			s.sendToParent(crossoverRequestMessage{s.pop.PickSolution()})
 			s.log("sent crossover request to island(%d); awaiting reply", s.island)
 
 			// We wait for a solutionMessageType message and process messages in the
