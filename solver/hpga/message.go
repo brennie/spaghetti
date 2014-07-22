@@ -19,6 +19,7 @@ package hpga
 
 import (
 	"log"
+	"sync"
 
 	"github.com/brennie/spaghetti/solver/hpga/population"
 	"github.com/brennie/spaghetti/tt"
@@ -39,6 +40,7 @@ const (
 	individualReplyMessageType                      // A slave replying to an island for a crossover.
 	stopMessageType                                 // The message telling the children to stop.
 	valueMessageType                                // A message containing a valuation.
+	waitMessageType                                 // A message containing a sync.WaitGroup
 )
 
 // A message
@@ -146,3 +148,10 @@ type valueMessage struct {
 
 // Get the messageType of a valueMessage.
 func (_ valueMessage) messageType() messageType { return valueMessageType }
+
+// A message containing a sync.WaitGroup
+type waitMessage struct {
+	wg *sync.WaitGroup // the Wait Group
+}
+
+func (_ waitMessage) messageType() messageType { return waitMessageType }

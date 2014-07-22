@@ -19,6 +19,8 @@
 package hpga
 
 import (
+	"sync"
+
 	"github.com/brennie/spaghetti/options"
 	"github.com/brennie/spaghetti/tt"
 )
@@ -52,4 +54,16 @@ func (c *child) fin() {
 // Run the HPGA.
 func Run(inst *tt.Instance, opts options.SolveOptions) (*tt.Solution, tt.Value) {
 	return newController(inst, opts).run(opts.Timeout)
+}
+
+// Wait for children
+func (p *parent) wait() {
+	wg := &sync.WaitGroup{}
+
+	for child := range p.toChildren {
+		wg.Add(1)
+		p.sendToChild(child, waitMessage{wg})
+	}
+
+	wg.Wait()
 }

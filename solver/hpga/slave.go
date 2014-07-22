@@ -18,8 +18,6 @@
 package hpga
 
 import (
-	"fmt"
-	"log"
 	"math/rand"
 
 	"github.com/brennie/spaghetti/options"
@@ -32,17 +30,8 @@ type slave struct {
 	child
 	island   int                    // The island the slave belongs to
 	inst     *tt.Instance           // The timetabling instance.
-	verbose  bool                   // Determines if events should be logged.
 	topValue tt.Value               // The best seen value thus far.
 	pop      *population.Population // The slave's population of soluations
-}
-
-// Optionally log a message if the verbose flag is set.
-func (s *slave) log(format string, args ...interface{}) {
-	if s.verbose {
-		msg := fmt.Sprintf(format, args...)
-		log.Printf("slave(%d.%d): %s\n", s.island, s.id, msg)
-	}
 }
 
 // Create a new slave with the given id. The given channel is the channel the
@@ -58,7 +47,6 @@ func newSlave(island int, id int, inst *tt.Instance, toParent chan<- message, op
 		},
 		island,
 		inst,
-		opts.Verbose,
 		tt.Value{0, 0},
 		nil,
 	}
@@ -68,29 +56,23 @@ func newSlave(island int, id int, inst *tt.Instance, toParent chan<- message, op
 	return fromParent
 }
 
-func (s *slave) handleMessage(msg message) (shouldExit bool) {
+func (s *slave) handleMessage(msg messageContent) (shouldExit bool) {
 	shouldExit = false
 
 	switch msg.messageType() {
 	case valueMessageType:
-		if value := msg.content.(valueMessage).value; value.Less(s.topValue) {
+		if value := msg.(valueMessage).value; value.Less(s.topValue) {
 			s.topValue = value
-			s.log("received valueMessageType: value was better")
-		} else {
-			s.log("received valueMessageType: value was worse")
 		}
 
 	case gmRequestMessageType:
 		s.sendToParent(gmReplyMessage{s.pop.PickSolution()})
-		s.log("received gmRequestMessageType; replied with solution")
 
 	case individualRequestMessageType:
-		id := msg.content.(individualRequestMessage).id
+		id := msg.(individualRequestMessage).id
 		s.sendToParent(individualReplyMessage{id, s.pop.PickIndividual()})
-		s.log("received individualRequestMessageType; replied with solution")
 
 	case stopMessageType:
-		s.log("received stopMessageType; exiting")
 		shouldExit = true
 		s.fin()
 	}
@@ -100,30 +82,31 @@ func (s *slave) handleMessage(msg message) (shouldExit bool) {
 
 // Run the slave.
 func (s *slave) run(minPop, maxPop int) {
+
+	// Generate the population and signal the island that population generation has finished.
+	s.pop = population.New(s.inst, minPop, maxPop)
+	(<-s.fromParent).content.(waitMessage).wg.Done()
+
 	// Receive the topValue-valued solution message from the island.
 	topValue := (<-s.fromParent).content.(valueMessage).value
-
-	s.log("generating population...")
-
-	s.pop = population.New(s.inst, minPop, maxPop)
-
-	s.log("finished generating population")
 
 	if best, value := s.pop.Best(); value.Less(topValue) {
 		topValue = value
 		s.sendToParent(solutionMessage{best.Assignments(), value})
-
-		s.log("found new best-valued solution: (%s)", value)
 	}
 
 	for {
-		select {
-		case msg := <-s.fromParent:
-			if s.handleMessage(msg) {
-				return
-			}
+		received := true
+		for received {
+			select {
+			case msg := <-s.fromParent:
+				if shouldExit := s.handleMessage(msg.content); shouldExit {
+					return
+				}
 
-		default:
+			default:
+				received = false
+			}
 		}
 
 		prob := rand.Intn(99) + 1 // [1, 100]
@@ -153,8 +136,6 @@ func (s *slave) run(minPop, maxPop int) {
 					mutate(individual, chromosome)
 					value = individual.Value()
 				}
-
-				s.log("performed a mutation")
 			} else {
 				mother := s.pop.PickIndividual()
 				father := s.pop.PickIndividual()
@@ -162,35 +143,28 @@ func (s *slave) run(minPop, maxPop int) {
 				individual = s.inst.NewSolution()
 
 				value = population.Crossover(mother, father, individual)
-
 			}
 
 			s.pop.Insert(individual)
 
 			if value.Less(topValue) {
 				topValue = value
-
-				s.log("found new best-valued solution: (%d,%d)", value.Distance, value.Fitness)
-
-				s.sendToParent(solutionMessage{individual.Assignments(), value})
+				s.sendToParent(solutionMessage{individual.Assignments(), topValue})
 			}
 
 		} else {
 			s.sendToParent(crossoverRequestMessage{s.pop.PickIndividual()})
-			s.log("sent crossover request to island(%d); awaiting reply", s.island)
 
 			// We wait for a solutionMessageType message and process messages in the
 			// mean time. We do this as try to not overload the island with
 			// messages.
 			msg := <-s.fromParent
 			for msg.messageType() != solutionMessageType {
-				if s.handleMessage(msg) {
+				if s.handleMessage(msg.content) {
 					return
 				}
 				msg = <-s.fromParent
 			}
-
-			s.log("received solutionMessageType from island(%d); inserting into population", s.island)
 			soln := msg.content.(solutionMessage).soln
 			value := msg.content.(solutionMessage).value
 
@@ -198,7 +172,6 @@ func (s *slave) run(minPop, maxPop int) {
 
 			if value.Less(topValue) {
 				topValue = value
-				s.log("result of crossover is a best-valued solution: (%s)", value)
 			}
 
 		}

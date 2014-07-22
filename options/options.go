@@ -58,7 +58,6 @@ Options:
   --seed <seed>     Specify the seed for the random number generator.
   --slaves <n>      Set the number of slaves per island [default: 2].
   --timeout <n>     Set the timeout time in minutes [default: 30].
-  --verbose         Turn on event logging.
   --version         Show version information.
   --output <file>   Write the solution to the given file instead of stdout.`
 
@@ -98,7 +97,6 @@ type SolveOptions struct {
 	MaxPop   int    // The maximum population of each island.
 	Seed     int64  // The seed for the random number generator.
 	Timeout  int    // The timeout in minutes.
-	Verbose  bool   // Should the program be verbose.
 }
 
 func (o SolveOptions) Mode() Mode {
@@ -186,8 +184,6 @@ func parseSolveOptions(args map[string]interface{}) (opts SolveOptions) {
 	if err != nil {
 		log.Fatalf("Invalid value for --timeout: %s\n", args["--timeout"].(string))
 	}
-
-	opts.Verbose = args["--verbose"].(bool)
 
 	if seed := args["--seed"]; seed != nil {
 		opts.Seed, err = strconv.ParseInt(args["--seed"].(string), 10, 64)

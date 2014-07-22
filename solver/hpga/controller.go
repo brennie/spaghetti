@@ -18,7 +18,6 @@
 package hpga
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -35,7 +34,6 @@ type controller struct {
 	inst     *tt.Instance // The timetabling instance
 	topValue tt.Value     // The value of the top-valued solution.
 	top      *tt.Solution // The top-valued solution
-	verbose  bool         // Determines if events should be logged.
 }
 
 // Create a new controller. There will be nIslands islands, each with nSlaves
@@ -50,8 +48,7 @@ func newController(inst *tt.Instance, opts options.SolveOptions) *controller {
 		},
 		inst,
 		tt.Value{-1, -1},
-		nil,
-		opts.Verbose,
+		inst.NewSolution(),
 	}
 
 	for i := 0; i < opts.NIslands; i++ {
@@ -61,29 +58,27 @@ func newController(inst *tt.Instance, opts options.SolveOptions) *controller {
 	return c
 }
 
-// Optionally log a message if the verbose flag is set.
-func (c *controller) log(format string, args ...interface{}) {
-	if c.verbose {
-		msg := fmt.Sprintf(format, args...)
-		log.Printf("controller: %s\n", msg)
-	}
-}
-
 // Run the controller.
 func (c *controller) run(timeout int) (*tt.Solution, tt.Value) {
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt)
+	// Wait for islands to signal that their children have finished generating populations
+	c.wait()
+
+	log.Println("Population generation finished")
 
 	// Use most-constrained variable ordering to find an upper bound for the
 	// HPGA to work towards. This way we will only try to update the best-
 	// known solution when this one is beat.
-	c.top = heuristics.MostConstrainedOrdering(c.inst.NewSolution())
+	heuristics.MostConstrainedOrdering(c.top)
 	c.topValue = c.top.Value()
+
+	log.Printf("Found new best solution: %s\n", c.topValue)
 
 	for child := range c.toChildren {
 		c.sendToChild(child, valueMessage{c.topValue})
 	}
 
+	signals := make(chan os.Signal)
+	signal.Notify(signals, os.Interrupt)
 msgLoop:
 	for {
 		timeout := time.After(time.Duration(timeout) * time.Minute)
@@ -95,28 +90,25 @@ msgLoop:
 				value := msg.content.(solutionMessage).value
 
 				if value.Less(c.topValue) {
-					c.log("received solutionMessageType: value was better")
 					c.topValue = value
 					c.top.Free()
 					c.top = c.inst.SolutionFromRats(soln)
+					log.Printf("Found new best solution: %s\n", c.topValue)
 
 					for child := range c.toChildren {
 						if child != msg.source {
 							c.sendToChild(child, valueMessage{c.topValue})
 						}
 					}
-				} else {
-					c.log("received solutionMessageType: value was worse")
 				}
 			}
 		case <-timeout:
-			c.log("timeout: sending stopMessageType to all islands")
+			log.Println("Timeout: sending stopMessageType to all islands...")
 			c.stopChildren()
-			c.log("received finMessageType from all islands: exiting")
 			break msgLoop
 
 		case <-signals:
-			log.Println("caught interrupt")
+			log.Println("Caught interrupt")
 			break msgLoop
 		}
 	}
@@ -150,6 +142,7 @@ func (c *controller) stopChildren() {
 				c.topValue = value
 				c.top.Free()
 				c.top = c.inst.SolutionFromRats(soln)
+				log.Printf("Found new best solution: %s\n", c.topValue)
 			}
 		}
 	}
