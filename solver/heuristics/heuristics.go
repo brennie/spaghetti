@@ -18,49 +18,17 @@
 package heuristics
 
 import (
-	"container/heap"
 	"math/rand"
 
 	"github.com/brennie/spaghetti/tt"
-	"github.com/brennie/spaghetti/tt/pqueue"
 )
-
-// Do most constrained variable first search to filla s much of the domains of
-// the solution as possible.
-func MostConstrainedOrdering(soln *tt.Solution) *tt.Solution {
-	pq := pqueue.New(soln.Domains)
-
-	for pq.Len() > 0 {
-		event := heap.Pop(pq).(int)
-		soln.Best(event)
-		pq.Update()
-	}
-
-	return soln
-}
-
-// Use random variable ordering to fill as much of the domains of the solution
-// as possible. We do not try to find the best element in the domain to assign;
-// we only try to fill up the domain as fast as possible.
-func RandomVariableOrdering(soln *tt.Solution) *tt.Solution {
-	for _, event := range rand.Perm(len(soln.Domains)) {
-		soln.Best(event)
-	}
-
-	return soln
-}
 
 // Randomly assign a solution by using a random variable ordering and picking
 // random domain entries in (non-empty) domains to assign to them.
 func RandomAssignment(soln *tt.Solution) *tt.Solution {
 	for _, event := range rand.Perm(len(soln.Domains)) {
-		if soln.Domains[event].Entries.Size() > 0 {
-			el := soln.Domains[event].Entries.First()
-			for offset := rand.Intn(soln.Domains[event].Entries.Size()); offset > 0; offset-- {
-				el = el.Next()
-			}
-			soln.Assign(event, el.Value().(tt.Rat))
-		}
+		rat := soln.Domains[event][rand.Intn(len(soln.Domains[event]))]
+		soln.Assign(event, rat)
 	}
 	return soln
 }

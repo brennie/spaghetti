@@ -17,21 +17,29 @@
 
 package tt
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 // A solution valuation.
 type Value struct {
-	Distance int // The distance to feasibility.
-	Fitness  int // The solution fitness.
+	Violations int // The number of hard constraint violations.
+	Fitness    int // The solution fitness.
+}
+
+// Determine if we have found an ideal value.
+func (v Value) IsIdeal() bool {
+	return v.Violations == 0 && v.Fitness == 0
 }
 
 // Compare two values using a lexicographical compare.
 func (v Value) Less(u Value) bool {
 	switch {
-	case v.Distance < u.Distance:
+	case v.Violations < u.Violations:
 		return true
 
-	case v.Distance == u.Distance && v.Fitness < u.Fitness:
+	case v.Violations == u.Violations && v.Fitness < u.Fitness:
 		return true
 
 	default:
@@ -41,5 +49,10 @@ func (v Value) Less(u Value) bool {
 
 // Format a value as a 2-tuple of the distance at fitness
 func (v Value) String() string {
-	return fmt.Sprintf("(%d, %d)", v.Distance, v.Fitness)
+	return fmt.Sprintf("(%d, %d)", v.Violations, v.Fitness)
+}
+
+// The worst possible value.
+func WorstValue() Value {
+	return Value{math.MaxInt32, math.MaxInt32}
 }

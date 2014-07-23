@@ -11,15 +11,13 @@ The communication protocol consists of three phases:
 In the set up phase, an upper bound is established for the solution by the controller and sent to all children.
 
 ### 1.1 Controller
-THe controller first sends a `waitMessage` to each island, each with the same `sync.WaitGroup`. When all islands have responded (i.e., when all populations are generated), the controller runs forward search without backtracking using the most-constrained variable first heuristic and sends a `valueMessage` to the islands.
-    
-The island waits for each of these messages and immediately typecasts them to the correct type; it does not use a switch on the result of the `message.message()` method because if it is the incorrect message type, then the controller has violated the protocol and a `panic()` will happen.
+The controller first sends a `waitMessage` to each island, each with the same `sync.WaitGroup` to wait for population generation.
 
 ### 1.2 Islands
-The islands send a `waitMessage` to each slave, each with the same `sync.WaitGroup`. Then they wait for the slaves to generate their populations. The islands wait for a `waitMessage` from the controller and calls `wg.Done()` on the given `sync.WaitGroup`. Then, the islands waits for a `valueMessage` from the controller and forward it to their respective slaves.
+The islands send a `waitMessage` to each slave, each with the same `sync.WaitGroup`. Then they wait for the slaves to generate their populations. The islands wait for a `waitMessage` from the controller and calls `wg.Done()` on the given `sync.WaitGroup`.
 
 ### 1.3 Slaves
-The slaves generate their populations. Then they wait for a `waitMessage` from their parent island and call `wg.Done()` on the given `sync.WaitGroup`. Then the slaves wait for a `valueMessage` from the isand.
+The slaves generate their populations. Then they wait for a `waitMessage` from their parent island and call `wg.Done()` on the given `sync.WaitGroup`.
 
 ## 2 Main Phase
 After the setup, the controller, islands, and slaves transition into the main phase. In this phase, the island and controller's main purposes are message forwarding -- all work is except for crossovers and migrations are done by the slaves.

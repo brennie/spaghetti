@@ -23,6 +23,5 @@ Usage
       --seed <seed>     Specify the seed for the random number generator.
       --slaves <n>      Set the number of slaves per island [default: 2].
       --timeout <n>     Set the timeout time in minutes [default: 30].
-      --verbose         Turn on event logging.
       --version         Show version information.
       --output <file>   Write the solution to the given file instead of stdout.

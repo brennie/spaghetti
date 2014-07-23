@@ -75,7 +75,9 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 	inst.rooms = make([]room, inst.nRooms)
 	inst.events = make([]event, inst.nEvents)
 
-	students := make([]map[int]bool, inst.nStudents)
+	// The set of events that each student attends. The index is the student
+	// number and the key is the event.
+	events := make([]map[int]bool, inst.nStudents)
 
 	for event := range inst.events {
 		inst.events[event].id = event
@@ -87,8 +89,8 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 		inst.events[event].exclude = make(map[int]bool)
 	}
 
-	for student := range students {
-		students[student] = make(map[int]bool)
+	for student := range events {
+		events[student] = make(map[int]bool)
 	}
 
 	for room := range inst.rooms {
@@ -107,7 +109,7 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 
 	// There is one line for each student and each event to determine if that
 	// student attends the event.
-	for student := range students {
+	for student := range events {
 		for event := range inst.events {
 			var attends bool
 
@@ -219,12 +221,34 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 	// share a student cannot occur at the same time).
 	for event := range inst.events {
 		for student := range inst.events[event].students {
-			for other := range students[student] {
+			for other := range events[student] {
 				if event == other {
 					continue
 				}
 
 				inst.events[event].exclude[other] = true
+			}
+		}
+	}
+
+	// Process the attends matrix to build exclusion lists (as two events that
+	inst.domains = make([][]Rat, inst.nEvents)
+	for eventIndex := range inst.events {
+		event := &inst.events[eventIndex]
+
+		nTimes := 0
+		for _, ok := range event.times {
+			if ok {
+				nTimes++
+			}
+		}
+
+		inst.domains[eventIndex] = make([]Rat, 0, len(event.rooms)*nTimes)
+		for room := range event.rooms {
+			for time, ok := range event.times {
+				if ok {
+					inst.domains[eventIndex] = append(inst.domains[eventIndex], Rat{room, time})
+				}
 			}
 		}
 	}

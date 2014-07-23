@@ -19,8 +19,6 @@ package tt
 
 import (
 	"sync"
-
-	"github.com/brennie/spaghetti/set"
 )
 
 // An instance of a timetabling problem.
@@ -32,16 +30,17 @@ type Instance struct {
 	rooms     []room    // The rooms in the instance.
 	events    []event   // The events in the instance.
 	solnPool  sync.Pool // A object pool for solutions.
+	domains   [][]Rat   // The master copy of the domains..
 }
 
 // Allocate the memory for a solution.
 func (inst *Instance) allocSolution() (s *Solution) {
 	s = &Solution{
 		inst,
-		make([][45]int, inst.nStudents),
-		make([]int, inst.nEvents*NTimes),
+		make([][45]map[int]bool, inst.nStudents),
+		make([]map[int]bool, inst.nRooms*NTimes),
 		make([]Rat, inst.nEvents),
-		make([]Domain, inst.nEvents),
+		inst.domains,
 	}
 
 	for event := range s.rats {
@@ -49,32 +48,12 @@ func (inst *Instance) allocSolution() (s *Solution) {
 	}
 
 	for index := range s.events {
-		s.events[index] = -1
+		s.events[index] = make(map[int]bool)
 	}
 
 	for student := range s.attendance {
 		for time := range s.attendance[student] {
-			s.attendance[student][time] = -1
-		}
-	}
-
-	for eventIndex := range s.Domains {
-		domain := &s.Domains[eventIndex]
-		event := &inst.events[eventIndex]
-
-		*domain = Domain{
-			set.New(ratCmp),
-			make(map[Rat]map[int]bool),
-		}
-
-		for room := range event.rooms {
-			for time, ok := range event.times {
-				if ok {
-					rat := Rat{room, time}
-					domain.Entries.Insert(rat)
-					domain.conflicts[rat] = make(map[int]bool)
-				}
-			}
+			s.attendance[student][time] = make(map[int]bool)
 		}
 	}
 

@@ -20,16 +20,19 @@ package tt
 import (
 	"fmt"
 	"io"
-	"log"
 )
 
 // A solution to an instance.
 type Solution struct {
-	inst       *Instance // The problem instance.
-	attendance [][45]int // Student attendance matrix.
-	events     []int     // Map each room and time to an event.
-	rats       []Rat     // Map each event to a room and time.
-	Domains    []Domain  // The domains.
+	inst       *Instance          // The problem instance.
+	attendance [][45]map[int]bool // Student attendance matrix.
+	events     []map[int]bool     // Map each room and time to an event.
+	rats       []Rat              // Map each event to a room and time.
+	Domains    [][]Rat            // The domains.
+}
+
+func (s *Solution) attends(student, time int) bool {
+	return len(s.attendance[student][time]) > 0
 }
 
 // Retrieve the assignments of a solution as a copy. This is a lighter-weight
@@ -53,42 +56,34 @@ func (s *Solution) Assigned(eventIndex int) bool {
 }
 
 // Assign an event to a room and time.
-func (s *Solution) Assign(eventIndex int, rat Rat) {
-	if eventIndex > s.inst.nEvents {
-		return
+func (s *Solution) Assign(event int, rat Rat) {
+	if event > s.inst.nEvents {
+		panic("Solution.Assign: event > nEvents")
+	} else if rat.index() > s.inst.nRooms*NTimes {
+		panic("Solution.Assign: invalid Rat")
 	}
 
-	event := &s.inst.events[eventIndex]
 	ratIndex := rat.index()
 
-	// If there was an event previous scheduled in the new room and time, then
-	// we unschedule it. We also mark the time slot as free in the student
-	// attendance matrix for each student who was attending the old event.
-	if oldEvent := s.events[ratIndex]; oldEvent != -1 {
-		s.Unassign(oldEvent)
-	}
+	// If the event is already assigned to a room and time (oldRat), we
+	// unassign it and replace the entries in the attendance matrix.
+	//
+	// Otherwise, we just add the new entries to the attendance matrix.
+	if oldRat := s.rats[event]; oldRat.Assigned() {
+		s.events[oldRat.index()][event] = false
 
-	// If the event was previously assigned to a room and time (oldRat), we
-	// unassign the old room and time and update the student attendance matrix
-	// to reflect the change. Otherwise we just add update the student
-	// attendance matrix.
-	if oldRat := s.rats[eventIndex]; oldRat.Assigned() {
-		s.events[oldRat.index()] = -1
-		for student := range event.students {
-			s.attendance[student][rat.Time] = eventIndex
-			s.attendance[student][oldRat.Time] = -1
+		for student := range s.inst.events[event].students {
+			delete(s.attendance[student][oldRat.Time], event)
+			s.attendance[student][rat.Time][event] = true
 		}
-		s.unshrink(eventIndex, oldRat)
 	} else {
-		for student := range event.students {
-			s.attendance[student][rat.Time] = eventIndex
+		for student := range s.inst.events[event].students {
+			s.attendance[student][rat.Time][event] = true
 		}
 	}
 
-	s.rats[eventIndex] = rat
-	s.events[ratIndex] = eventIndex
-
-	s.shrink(eventIndex)
+	s.rats[event] = rat
+	s.events[ratIndex][event] = true
 }
 
 // Determine the quality of each assignment, as determined by the number of
@@ -97,83 +92,94 @@ func (s *Solution) Assign(eventIndex int, rat Rat) {
 // It is not the case that the solution value is the sum of the assignment
 // quality, as penalties will be counted for each event involved that violates
 // the constraint.
+//
+// XXX: Redo in terms of hard constraints instead of soft??
 func (s *Solution) AssignmentQuality() (quality []Value) {
 	quality = make([]Value, s.inst.nEvents)
 
 	for event := range quality {
 		nStudents := len(s.inst.events[event].students)
 
-		if !s.rats[event].Assigned() {
-			quality[event].Distance = nStudents
-		} else {
-			time := s.rats[event].Time
-			startOfDay := time - time%9
-			endOfDay := startOfDay + 8
+		time := s.rats[event].Time
+		startOfDay := time - time%9
+		endOfDay := startOfDay + 8
 
-			for student := range s.attendance {
-				// First we find the number of consecutive events that the
-				// event is a part of.
-				blockStart := time
-				consecutive := 0
+		for student := range s.attendance {
+			// First we find the number of consecutive events that the
+			// event is a part of.
+			blockStart := time
+			consecutive := 0
 
-				for blockStart > startOfDay && s.attendance[student][blockStart-1] != -1 {
-					blockStart--
-				}
-				for t := blockStart; t <= endOfDay && s.attendance[student][blockStart] != -1; t++ {
-					consecutive++
-				}
-
-				if consecutive > 2 {
-					quality[event].Fitness += consecutive - 2
-				} else {
-					// Find the total number of events on the day.
-					count := 0
-					for t := startOfDay; t <= endOfDay; t++ {
-						if s.attendance[student][t] != -1 {
-							count++
-						}
-					}
-
-					// If the student only attends one class (i.e., `event'),
-					// then the penality is 1 per student.
-					if count == 1 {
-						quality[event].Fitness++
-					}
-				}
+			for blockStart > startOfDay && len(s.attendance[student][blockStart-1]) > 0 {
+				blockStart--
+			}
+			for t := blockStart; t <= endOfDay && len(s.attendance[student][blockStart]) > 0; t++ {
+				consecutive++
 			}
 
-			// If the event is scheduled at the end of the day, then the
-			// penalty is the number of students that would attend the event.
-			if time == endOfDay {
-				quality[event].Fitness += nStudents
+			if consecutive > 2 {
+				quality[event].Fitness += consecutive - 2
+			} else {
+				// Find the total number of events on the day.
+				count := 0
+				for t := startOfDay; t <= endOfDay; t++ {
+					if len(s.attendance[student][t]) > 0 {
+						count++
+					}
+				}
+
+				// If the student only attends one class (i.e., `event'),
+				// then the penality is 1 per student.
+				if count == 1 {
+					quality[event].Fitness++
+				}
+			}
+		}
+
+		// If the event is scheduled at the end of the day, then the
+		// penalty is the number of students that would attend the event.
+		if time == endOfDay {
+			quality[event].Fitness += nStudents
+		}
+
+		// We consider ordering violations for events. Unlike in Violations(),
+		// we consider both the before and after relations because we are
+		// concerned with how well we have assigned each variable, not the
+		// quality of the overall solution.
+		for otherEvent := range s.inst.events[event].after {
+			if s.rats[otherEvent].Time <= s.rats[event].Time {
+				quality[event].Violations++
+			}
+		}
+
+		for otherEvent := range s.inst.events[event].before {
+			if s.rats[otherEvent].Time >= s.rats[event].Time {
+				quality[event].Violations++
+			}
+		}
+	}
+
+	// We consider the number of students that must attend multiple events.
+	for student := range s.attendance {
+		for time := range s.attendance[student] {
+			if nEvents := len(s.attendance[student][time]); nEvents >= 2 {
+				for event := range s.attendance[student][time] {
+					quality[event].Violations += nEvents - 1
+				}
+			}
+		}
+	}
+
+	// We consider the number of events assigned to each room and time.
+	for ratIndex := range s.events {
+		if nEvents := len(s.events[ratIndex]); nEvents >= 2 {
+			for event := range s.events[ratIndex] {
+				quality[event].Violations += nEvents - 1
 			}
 		}
 	}
 
 	return
-}
-
-// Determine the best Rat for the given event and assign it.
-func (s *Solution) Best(eventIndex int) {
-	if eventIndex > s.inst.nEvents || s.Assigned(eventIndex) {
-		return
-	}
-
-	if domain := s.Domains[eventIndex].Entries; domain.Size() > 0 {
-		el := domain.First()
-		minRat := el.Value().(Rat)
-		minFit := s.TryAssign(eventIndex, minRat)
-
-		for el = el.Next(); el != nil; el = el.Next() {
-			rat := el.Value().(Rat)
-			if fit := s.TryAssign(eventIndex, rat); fit < minFit {
-				minFit = fit
-				minRat = rat
-			}
-		}
-
-		s.Assign(eventIndex, minRat)
-	}
 }
 
 // Compute the distance to feasibility of a solution. The distance to
@@ -209,7 +215,7 @@ func (s *Solution) Fitness() (fit int) {
 			count := 0
 
 			for hour := 0; hour < 9; hour++ {
-				if s.attendance[student][day*9+hour] != -1 {
+				if len(s.attendance[student][day*9+hour]) > 0 {
 					count++
 					consecutive++
 
@@ -225,7 +231,7 @@ func (s *Solution) Fitness() (fit int) {
 				fit++
 			}
 
-			if s.attendance[student][day*9+8] != -1 {
+			if len(s.attendance[student][day*9+8]) > 0 {
 				fit++
 			}
 		}
@@ -241,110 +247,21 @@ func (s *Solution) Free() {
 	}
 
 	for ratIndex := range s.events {
-		s.events[ratIndex] = -1
+		for event := range s.events[ratIndex] {
+			delete(s.events[ratIndex], event)
+		}
 	}
 
 	// Reset the attendance matrix
 	for student := range s.attendance {
 		for time := range s.attendance[student] {
-			s.attendance[student][time] = -1
-		}
-	}
-
-	// Reset the domains of the solution.
-	for event := range s.Domains {
-		domain := &s.Domains[event]
-
-		for rat := range domain.conflicts {
-			if len(domain.conflicts[rat]) > 0 {
-				for conflict := range domain.conflicts[rat] {
-					delete(domain.conflicts[rat], conflict)
-				}
-				s.Domains[event].Entries.Insert(rat)
+			for event := range s.attendance[student][time] {
+				delete(s.attendance[student][time], event)
 			}
 		}
 	}
 
 	s.inst.solnPool.Put(s)
-}
-
-// Determine the number of assigned events in the solution.
-func (s *Solution) NAssigned() (count int) {
-	count = 0
-	for _, rat := range s.rats {
-		if rat.Assigned() {
-			count++
-		}
-	}
-	return
-}
-
-// Assign and unassign without shrinking the domains. An invalid eventIndex
-// will cause the program to exit fatally.
-func (s *Solution) TryAssign(eventIndex int, rat Rat) (fitness int) {
-	if eventIndex > s.inst.nEvents {
-		log.Fatalf("Solution.TryAssign: Invalid eventIndex `%d'\n", eventIndex)
-	}
-
-	event := &s.inst.events[eventIndex]
-	ratIndex := rat.index()
-
-	oldEvent := s.events[ratIndex] // The old event assigned to rat.
-	oldRat := s.rats[eventIndex]   // The old rat assigned to eventIndex.
-
-	// If there is an event assigned to rat, we unschedule it without modifying
-	// the domains involved. This will allow for a correct result from Fitness
-	// without the cost of re-calculating domains.
-	if oldEvent != -1 {
-		oldEventTime := s.rats[oldEvent].Time
-		// Unassign oldEvent without calling unshrink.
-		for student := range s.inst.events[oldEvent].students {
-			s.attendance[student][oldEventTime] = -1
-		}
-	}
-
-	// If the event is currently assigned, we can unschedule it if and only if
-	// the times differ (otherwise the schedule can remain unchanged). However,
-	// if the event is currently unassigned, we can schedule it appropriately.
-	if oldRat.Assigned() && oldRat.Time != rat.Time {
-		for student := range event.students {
-			s.attendance[student][rat.Time] = eventIndex
-			s.attendance[student][oldRat.Time] = -1
-		}
-	} else if !oldRat.Assigned() {
-		for student := range event.students {
-			s.attendance[student][rat.Time] = eventIndex
-		}
-	}
-
-	// Fitness doesn't check s.events or s.rats, so we can leave those alone.
-	fitness = s.Fitness()
-
-	// Now we restore the state of the timetable. If the event is currently
-	// assigned, we can re-schedule it if and only if the times differ. if it
-	// is unassigned, we unschedule it.
-	if oldRat.Assigned() && oldRat.Time != rat.Time {
-		for student := range event.students {
-			s.attendance[student][rat.Time] = -1
-			s.attendance[student][oldRat.Time] = s.events[oldRat.index()]
-		}
-	} else if !oldRat.Assigned() {
-		for student := range event.students {
-			s.attendance[student][rat.Time] = -1
-		}
-	}
-
-	// If there previously was an event assigned to rat, we reschedule it in
-	// the timetable.
-	if oldEvent != -1 {
-		oldEventTime := s.rats[oldEvent].Time
-		for student := range s.inst.events[oldEvent].students {
-			s.attendance[student][oldEventTime] = oldEvent
-		}
-	}
-
-	// The timetable is now back in its unmodified state.
-	return
 }
 
 // Get the Rat assigned to the index. If the eventIndex is invalid, badRat is
@@ -357,64 +274,55 @@ func (s *Solution) RatAt(eventIndex int) Rat {
 	}
 }
 
-// Unassign all events that reduce the domain size of the given event.
-func (s *Solution) RemoveConflicts(eventIndex int) {
-	if eventIndex > s.inst.nEvents {
-		return
-	}
-
-	domain := &s.Domains[eventIndex]
-
-	for rat := range domain.conflicts {
-		for conflict := range domain.conflicts[rat] {
-			s.Unassign(conflict)
-		}
-	}
-}
-
-// Shrink the domains after an assignment.
-func (s *Solution) shrink(eventIndex int) {
-	event := &s.inst.events[eventIndex]
-	rat := s.rats[eventIndex]
-
-	// Remove the assignment from the domains of all events.
-	for event := range s.Domains {
-		if event == eventIndex {
-			continue
-		}
-
-		s.Domains[event].addConflict(rat, eventIndex)
-	}
-
-	// Remove the time slot from all events that share a student.
-	for exclude := range event.exclude {
-		for room := 0; room < s.inst.nRooms; room++ {
-			s.Domains[exclude].addConflict(Rat{room, rat.Time}, eventIndex)
-		}
-	}
-
-	// Remove the domain entries from all events that must occur before it.
-	for before := range event.before {
-		for room := 0; room < s.inst.nRooms; room++ {
-			for time := rat.Time; time < NTimes; time++ {
-				s.Domains[before].addConflict(Rat{room, time}, eventIndex)
-			}
-		}
-	}
-
-	// Rmove the domain entries from all events that must occur after it.
-	for after := range event.after {
-		for room := 0; room < s.inst.nRooms; room++ {
-			for time := 0; time <= rat.Time; time++ {
-				s.Domains[after].addConflict(Rat{room, time}, eventIndex)
-			}
-		}
-	}
-}
-
 // Determine the value of the solution (ie. the distance and fitness).
 func (s *Solution) Value() Value {
-	return Value{s.Distance(), s.Fitness()}
+	return Value{s.Violations(), s.Fitness()}
+}
+
+// Determine the number of hard constraint violations in the solution.
+func (s *Solution) Violations() (violations int) {
+	violations = 0
+
+	// We consider the number of students that must attend a multiple events
+	// at once. In this case, the penality is the number of events that each
+	// student must attend more than one in each time slot.
+	for student := range s.attendance {
+		for time := range s.attendance[student] {
+			if nEvents := len(s.attendance[student][time]); nEvents >= 2 {
+				violations += nEvents - 1
+			}
+		}
+	}
+
+	// We consider the number of events assigned to each Rat. If there are
+	// multiple events assigned to a single Rat, then the penalty is the
+	// number of pairs of conflicting events.
+	for ratIndex := range s.events {
+		if nEvents := len(s.events[ratIndex]); nEvents >= 2 {
+			// n choose 2 = 1 + 2 + ... + n-1 = n(n-1)/2, for n >=2
+			violations += (nEvents * (nEvents - 1)) / 2
+		}
+	}
+
+	// We consider the order of events. We only consider the `after' relation
+	// as  A `after` B is equivalent to B `before` A. If there is an event
+	// that is supposed to occur after another that is not scheduled as such,
+	// the penality is 1 per such event.
+	for eventIndex := range s.rats {
+		event := &s.inst.events[eventIndex]
+
+		for otherIndex := range event.after {
+			if s.rats[otherIndex].Time <= s.rats[eventIndex].Time {
+				violations++
+			}
+		}
+	}
+
+	// We do not have to check if events are scheduled in invalid timeslots or
+	// rooms (e.g., that are too small or do not contain appropriate features)
+	// as the domain generation at the beginning removes that possibility.
+	return
+
 }
 
 // Write the solution to the given writer.
@@ -426,55 +334,18 @@ func (s *Solution) Write(w io.Writer) {
 
 // Unassign the given event.
 func (s *Solution) Unassign(eventIndex int) {
-	if !s.Assigned(eventIndex) {
-		return
-	}
+	if eventIndex > s.inst.nEvents {
+		panic("Solution.Unassign: eventIndex > nEvents")
+	} else if s.rats[eventIndex].Assigned() {
+		event := &s.inst.events[eventIndex]
+		rat := s.rats[eventIndex]
 
-	event := &s.inst.events[eventIndex]
-	rat := s.rats[eventIndex]
-
-	// Remove all entries from the attendance matrix.
-	for student := range event.students {
-		s.attendance[student][rat.Time] = -1
-	}
-
-	s.rats[eventIndex] = badRat
-	s.events[rat.index()] = -1
-
-	s.unshrink(eventIndex, rat)
-}
-
-// Unshrink the domains as the result of an unassignment.
-func (s *Solution) unshrink(eventIndex int, rat Rat) {
-	event := &s.inst.events[eventIndex]
-
-	// Remove the conflict of the specific assignment for all other events.
-	for event := range s.Domains {
-		s.Domains[event].removeConflict(rat, eventIndex)
-	}
-
-	// Remove the conflict from all events which share a student.
-	for exclude := range event.exclude {
-		for room := 0; room < s.inst.nRooms; room++ {
-			s.Domains[exclude].removeConflict(Rat{room, rat.Time}, eventIndex)
+		// Remove all entries from the attendance matrix.
+		for student := range event.students {
+			delete(s.attendance[student][rat.Time], eventIndex)
 		}
-	}
 
-	// Remove the conflict from all events which must occur before this event.
-	for before := range event.before {
-		for room := 0; room < s.inst.nRooms; room++ {
-			for time := rat.Time; time < NTimes; time++ {
-				s.Domains[before].removeConflict(Rat{room, time}, eventIndex)
-			}
-		}
-	}
-
-	// Remove the conflict from all events which must occur after this event.
-	for after := range event.after {
-		for room := 0; room < s.inst.nRooms; room++ {
-			for time := 0; time <= rat.Time; time++ {
-				s.Domains[after].removeConflict(Rat{room, time}, eventIndex)
-			}
-		}
+		s.rats[eventIndex] = badRat
+		delete(s.events[rat.index()], eventIndex)
 	}
 }

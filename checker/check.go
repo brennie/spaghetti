@@ -50,6 +50,15 @@ func Check(opts options.CheckOptions) {
 		log.Fatalf("Could not parse %s: %s\n", opts.Solution, err.Error())
 	}
 
-	fmt.Printf("Distance to feasibility: %d\nSoft Constraint Violations: %d\n",
-		soln.Distance(), soln.Fitness())
+	violations := soln.Violations()
+	distance := soln.Distance()
+	fitness := soln.Fitness()
+
+	fmt.Printf("Hard constraint violations: %d\nDistance to feasibility: %d\nSoft Constraint Violations: %d\n", violations, distance, fitness)
+
+	if violations > 0 {
+		fmt.Println("This is not a valid timetable.")
+	} else if distance > 0 {
+		fmt.Println("This is not a feasible timetable.")
+	}
 }

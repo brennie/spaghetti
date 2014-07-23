@@ -18,7 +18,8 @@
 package hpga
 
 import (
-	"github.com/brennie/spaghetti/solver/heuristics"
+	"math/rand"
+
 	"github.com/brennie/spaghetti/tt"
 )
 
@@ -31,17 +32,16 @@ const (
 // optimal value in the domain (such that it does not violate a hard
 // constraint).
 func mutate(mutant *tt.Solution, chromosome int) {
-	mutant.Unassign(chromosome)
-	mutant.Best(chromosome)
+	rat := mutant.Domains[chromosome][rand.Intn(len(mutant.Domains[chromosome]))]
+	mutant.Assign(chromosome, rat)
 }
 
 // Perform genetic mutation on the given solution, which is a more extreme
 // form of the mutate operator. This operater does unassignemnt and then re-
 // assigns to find the best overall value for the chromosome and then re-fill
 // the domain by using the most constrained ordering heuristic.
+//
+// XXX: This should actually do something.
 func gm(mutant *tt.Solution, chromosome int) {
-	mutant.Unassign(chromosome)
-	mutant.RemoveConflicts(chromosome)
-	mutant.Best(chromosome)
-	heuristics.MostConstrainedOrdering(mutant)
+	mutate(mutant, chromosome)
 }

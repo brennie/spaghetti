@@ -47,7 +47,7 @@ func newSlave(island int, id int, inst *tt.Instance, toParent chan<- message, op
 		},
 		island,
 		inst,
-		tt.Value{0, 0},
+		tt.WorstValue(),
 		nil,
 	}
 
@@ -82,17 +82,15 @@ func (s *slave) handleMessage(msg messageContent) (shouldExit bool) {
 
 // Run the slave.
 func (s *slave) run(minPop, maxPop int) {
+	topValue := tt.WorstValue()
 
 	// Generate the population and signal the island that population generation has finished.
 	s.pop = population.New(s.inst, minPop, maxPop)
 	(<-s.fromParent).content.(waitMessage).wg.Done()
 
-	// Receive the topValue-valued solution message from the island.
-	topValue := (<-s.fromParent).content.(valueMessage).value
-
 	if best, value := s.pop.Best(); value.Less(topValue) {
 		topValue = value
-		s.sendToParent(solutionMessage{best.Assignments(), value})
+		s.sendToParent(solutionMessage{best.Assignments(), topValue})
 	}
 
 	for {
@@ -117,25 +115,8 @@ func (s *slave) run(minPop, maxPop int) {
 
 			if prob < pMutate {
 				individual = s.pop.RemoveOne()
-				nAssigned := individual.NAssigned()
-
-				// If all the events have been assigned, we mutate one of them
-				// at random. Otherwise we pick the Nth unassigned event and
-				// walk through the events until we find its index.
-				if nAssigned == s.inst.NEvents() {
-					mutate(individual, rand.Intn(s.inst.NEvents()))
-				} else {
-					chromosome := rand.Intn(s.inst.NEvents() - nAssigned)
-					for i := 0; i < s.inst.NEvents(); i++ {
-						if individual.Assigned(i) {
-							chromosome++
-						} else if i == chromosome {
-							break
-						}
-					}
-					mutate(individual, chromosome)
-					value = individual.Value()
-				}
+				mutate(individual, rand.Intn(s.inst.NEvents()))
+				value = individual.Value()
 			} else {
 				mother := s.pop.PickIndividual()
 				father := s.pop.PickIndividual()

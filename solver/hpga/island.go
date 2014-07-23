@@ -62,7 +62,7 @@ func newIsland(id int, inst *tt.Instance, toParent chan<- message, opts options.
 			toParent,
 		},
 		inst,
-		tt.Value{-1, -1},
+		tt.WorstValue(),
 		nil,
 	}
 
@@ -81,11 +81,6 @@ func (i *island) run() {
 
 	i.wait()
 	(<-i.fromParent).content.(waitMessage).wg.Done()
-
-	i.topValue = (<-i.fromParent).content.(valueMessage).value
-	for child := range i.toChildren {
-		i.sendToChild(child, valueMessage{i.topValue})
-	}
 
 	i.gmTimer = time.NewTimer(gmInterval)
 

@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/brennie/spaghetti/options"
-	"github.com/brennie/spaghetti/solver/heuristics"
 	"github.com/brennie/spaghetti/tt"
 )
 
@@ -47,7 +46,7 @@ func newController(inst *tt.Instance, opts options.SolveOptions) *controller {
 			make([]chan<- message, opts.NIslands),
 		},
 		inst,
-		tt.Value{-1, -1},
+		tt.WorstValue(),
 		inst.NewSolution(),
 	}
 
@@ -59,29 +58,18 @@ func newController(inst *tt.Instance, opts options.SolveOptions) *controller {
 }
 
 // Run the controller.
-func (c *controller) run(timeout int) (*tt.Solution, tt.Value) {
+func (c *controller) run(timeoutInterval int) (*tt.Solution, tt.Value) {
 	// Wait for islands to signal that their children have finished generating populations
 	c.wait()
 
 	log.Println("Population generation finished")
 
-	// Use most-constrained variable ordering to find an upper bound for the
-	// HPGA to work towards. This way we will only try to update the best-
-	// known solution when this one is beat.
-	heuristics.MostConstrainedOrdering(c.top)
-	c.topValue = c.top.Value()
-
-	log.Printf("Found new best solution: %s\n", c.topValue)
-
-	for child := range c.toChildren {
-		c.sendToChild(child, valueMessage{c.topValue})
-	}
-
+	timeout := time.After(time.Duration(timeoutInterval) * time.Minute)
 	signals := make(chan os.Signal)
 	signal.Notify(signals, os.Interrupt)
+
 msgLoop:
 	for {
-		timeout := time.After(time.Duration(timeout) * time.Minute)
 		select {
 		case msg := <-c.fromChildren:
 			switch msg.messageType() {
@@ -95,6 +83,12 @@ msgLoop:
 					c.top = c.inst.SolutionFromRats(soln)
 					log.Printf("Found new best solution: %s\n", c.topValue)
 
+					if c.topValue.IsIdeal() {
+						log.Println("Found ideal solution. Stopping...")
+						c.stopChildren()
+						break msgLoop
+					}
+
 					for child := range c.toChildren {
 						if child != msg.source {
 							c.sendToChild(child, valueMessage{c.topValue})
@@ -103,7 +97,7 @@ msgLoop:
 				}
 			}
 		case <-timeout:
-			log.Println("Timeout: sending stopMessageType to all islands...")
+			log.Println("Timeout: stopping...")
 			c.stopChildren()
 			break msgLoop
 
