@@ -24,3 +24,7 @@ _testmain.go
 
 *.tim
 *.sln
+
+# Shell scripts
+*.sh
+*.ps1
