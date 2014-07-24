@@ -26,14 +26,18 @@ import (
 type parentMask bool
 
 const (
-	useMother parentMask = false
-	useFather parentMask = true
+	useMother parentMask = false // Mask value signalling to use the mother
+	useFather parentMask = true  // Mask value signalling to use the father
+	maxMutate float64    = 0.2   // The maximum percentage of an individual to mutate
 )
 
+// Do a crossover between the mother and the father into the (empty) child
+// solution and return its value.
 func Crossover(mother, father *Individual, child *tt.Solution) (childValue tt.Value) {
+	pMother := float64(0.5 + (mother.Success.Ratio()-father.Success.Ratio())*0.5)
 	for event := range mother.Assignments {
 		parent := mother
-		if mask(mother, father, event) == useFather {
+		if mask(mother, father, event, pMother) == useFather {
 			parent = father
 		}
 
@@ -49,10 +53,8 @@ func Crossover(mother, father *Individual, child *tt.Solution) (childValue tt.Va
 	return childValue
 }
 
-func mask(mother, father *Individual, event int) parentMask {
-
-	pMother := float64(0.5 + (mother.Success.Ratio()-father.Success.Ratio())*0.5)
-
+// Generate the crossover mask for the specific event in the two individuals.
+func mask(mother, father *Individual, event int, pMother float64) parentMask {
 	if mother.Quality[event].Less(father.Quality[event]) {
 		return useMother
 	} else if father.Quality[event].Less(mother.Quality[event]) {
@@ -63,4 +65,31 @@ func mask(mother, father *Individual, event int) parentMask {
 		return useFather
 	}
 
+}
+
+// Mutate a solution.
+func Mutate(mutant *tt.Solution) (value tt.Value) {
+	nEvents := mutant.NEvents()
+	max := int(maxMutate * float64(nEvents))
+	nMutations := rand.Intn(max) + 1 // nMutations is in the range [1, max]
+
+	toMutate := make(map[int]bool)
+	for len(toMutate) < nMutations {
+		chromosome := rand.Intn(nEvents)
+		toMutate[chromosome] = true
+	}
+
+	for event := range toMutate {
+		rat := mutant.Domains[event][rand.Intn(len(mutant.Domains[event]))]
+		mutant.Assign(event, rat)
+	}
+
+	return mutant.Value()
+}
+
+// Mutate one member of a given population and return the solution and the value
+func (p *Population) MutateOne() (mutant *tt.Solution, value tt.Value) {
+	mutant = p.RemoveOne()
+	value = Mutate(mutant)
+	return
 }

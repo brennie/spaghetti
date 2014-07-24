@@ -18,8 +18,6 @@
 package hpga
 
 import (
-	"math/rand"
-
 	"github.com/brennie/spaghetti/tt"
 )
 
@@ -28,14 +26,6 @@ const (
 	pLocal  = 75 // The probability of a local crossover is 75%
 )
 
-// Mutate a solution at the given chromosome, giving that chromosome the
-// optimal value in the domain (such that it does not violate a hard
-// constraint).
-func mutate(mutant *tt.Solution, chromosome int) {
-	rat := mutant.Domains[chromosome][rand.Intn(len(mutant.Domains[chromosome]))]
-	mutant.Assign(chromosome, rat)
-}
-
 // Perform genetic mutation on the given solution, which is a more extreme
 // form of the mutate operator. This operater does unassignemnt and then re-
 // assigns to find the best overall value for the chromosome and then re-fill
@@ -43,5 +33,5 @@ func mutate(mutant *tt.Solution, chromosome int) {
 //
 // XXX: This should actually do something.
 func gm(mutant *tt.Solution, chromosome int) {
-	mutate(mutant, chromosome)
+	//(mutant, chromosome)
 }

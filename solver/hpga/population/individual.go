@@ -26,12 +26,18 @@ type individual struct {
 	success *Success     // The success ratio of the individual.
 }
 
-// Create a new individual from the given solution.
-func newIndividual(soln *tt.Solution) *individual {
-	return &individual{
-		soln,
-		soln.Value(),
-		&Success{},
+// Create a new individual from the given solution and optional value. If the
+// value is not provided, it will be computed.
+func newIndividual(soln *tt.Solution, value ...tt.Value) *individual {
+	switch len(value) {
+	case 0:
+		return &individual{soln, soln.Value(), &Success{}}
+
+	case 1:
+		return &individual{soln, value[0], &Success{}}
+
+	default:
+		panic("population: newIndividual: len(value) > 1")
 	}
 }
 

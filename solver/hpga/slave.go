@@ -114,9 +114,7 @@ func (s *slave) run(minPop, maxPop int) {
 			var value tt.Value
 
 			if prob < pMutate {
-				individual = s.pop.RemoveOne()
-				mutate(individual, rand.Intn(s.inst.NEvents()))
-				value = individual.Value()
+				individual, value = s.pop.MutateOne()
 			} else {
 				mother := s.pop.PickIndividual()
 				father := s.pop.PickIndividual()

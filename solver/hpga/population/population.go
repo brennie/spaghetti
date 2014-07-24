@@ -108,11 +108,15 @@ func (p *Population) Select() {
 // Insert a member into the population. If the population is full, do selection
 // first.
 func (p *Population) Insert(soln *tt.Solution) {
+	p.insert(soln, soln.Value())
+}
+
+func (p *Population) insert(soln *tt.Solution, value tt.Value) {
 	if p.Size() == p.maxSize {
 		p.Select()
 	}
 
-	heap.Push(&p.heap, newIndividual(soln))
+	heap.Push(&p.heap, newIndividual(soln, value))
 }
 
 // Determine the best member of the population. A solution picked this way must

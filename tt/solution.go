@@ -303,6 +303,12 @@ func (s *Solution) Free() {
 	s.inst.solnPool.Put(s)
 }
 
+// Determine the number of events involved in the solution (and problem
+// instance).
+func (s *Solution) NEvents() int {
+	return s.inst.nEvents
+}
+
 // Get the Rat assigned to the index. If the eventIndex is invalid, badRat is
 // returned.
 func (s *Solution) RatAt(eventIndex int) Rat {

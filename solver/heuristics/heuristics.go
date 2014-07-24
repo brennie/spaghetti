@@ -27,7 +27,7 @@ import (
 // Randomly assign a solution by using a random variable ordering and picking
 // random domain entries in (non-empty) domains to assign to them.
 func RandomAssignment(soln *tt.Solution) *tt.Solution {
-	for _, event := range rand.Perm(len(soln.Domains)) {
+	for _, event := range rand.Perm(soln.NEvents()) {
 		rat := soln.Domains[event][rand.Intn(len(soln.Domains[event]))]
 		soln.Assign(event, rat)
 	}
@@ -36,7 +36,7 @@ func RandomAssignment(soln *tt.Solution) *tt.Solution {
 
 // Follow the given variable ordering
 func RandomAssignmentWithOrdering(soln *tt.Solution, ordering []int) *tt.Solution {
-	domains := make([]set.Set, len(soln.Domains))
+	domains := make([]set.Set, soln.NEvents())
 	for event := range domains {
 		domains[event] = set.FromList(tt.RatCompare, soln.Domains[event])
 	}
