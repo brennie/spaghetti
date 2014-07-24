@@ -245,6 +245,39 @@ func (s *Solution) HasViolations(event int) bool {
 	return false
 }
 
+// Determine the best assignment for the given event if one exists. In the
+// even that one cannot be found, an unassigned Rat is returned.
+func (s *Solution) Improve(event int) Rat {
+	if event > s.inst.nEvents {
+		panic("Solution.Improve : event > nEvents")
+	}
+
+	if s.HasViolations(event) {
+		bestValue := s.Value()
+		originalRat := s.rats[event]
+		bestRat := originalRat
+
+		for _, rat := range s.Domains[event] {
+			s.Assign(event, rat)
+			value := s.Value()
+
+			if value.Less(bestValue) {
+				bestValue = value
+				bestRat = rat
+			}
+		}
+
+		s.Assign(event, originalRat)
+
+		// If we cannot find something better than the current assignment, we
+		if bestRat != s.rats[event] {
+			return bestRat
+		}
+	}
+
+	return badRat
+}
+
 // Compute the distance to feasibility of a solution. The distance to
 // to feasibility is defined as the sum of the number of students who attend
 // unscheduled classes.
