@@ -216,6 +216,35 @@ func (s *Solution) AssignmentQuality(event int) (quality Value) {
 	return
 }
 
+// Determine if an assigned event has any hard constraint violations.
+func (s *Solution) HasViolations(event int) bool {
+	if event > s.inst.nEvents {
+		panic("Solution.HasConflicts: event > nEvents")
+	}
+
+	if len(s.attendance[student][time]) >= 2 {
+		return true
+	}
+
+	if len(s.events[s.rats[event].index()]) > 1 {
+		return true
+	}
+
+	for after := range s.inst.events[event].after {
+		if s.rats[after].Time <= s.rats[event].Time {
+			return true
+		}
+	}
+
+	for before := range s.inst.events[event].before {
+		if s.rats[before].Time >= s.rats[event].Time {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Compute the distance to feasibility of a solution. The distance to
 // to feasibility is defined as the sum of the number of students who attend
 // unscheduled classes.
