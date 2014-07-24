@@ -19,6 +19,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/brennie/spaghetti/checker"
 	"github.com/brennie/spaghetti/fetcher"
@@ -28,6 +29,7 @@ import (
 
 func main() {
 	log.SetFlags(log.Ltime)
+	log.SetOutput(os.Stdout)
 
 	opts := options.Parse()
 
