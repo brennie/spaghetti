@@ -119,7 +119,7 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 			}
 
 			if attends {
-				students[student][event] = true
+				events[student][event] = true
 				inst.events[event].students[student] = true
 			}
 

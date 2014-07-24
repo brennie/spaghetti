@@ -25,6 +25,18 @@ type Element struct {
 	left, right *Element    // The left and right children.
 }
 
+func (e *Element) clear() {
+	if e.left != nil {
+		e.left.clear()
+	}
+
+	if e.right != nil {
+		e.right.clear()
+	}
+
+	e.free()
+}
+
 // Free the element back to the object pool.
 func (e *Element) free() {
 	e.left = nil

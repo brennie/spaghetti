@@ -46,6 +46,26 @@ func New(compare Compare) Set {
 	}
 }
 
+func (s *Set) Clear() {
+	if s.root != nil {
+		s.root.clear()
+		s.root = nil
+		s.size = 0
+	}
+}
+
+// Build a Set from a slice of elements. If compare cannot handle all of
+// elements, then there will probably be a panic from a failed type assertion.
+func FromList(compare Compare, elements []interface{}) (s Set) {
+	s = New(compare)
+
+	for i := range elements {
+		s.Insert(elements[i])
+	}
+
+	return
+}
+
 // Determine if the set contains the given value.
 func (s *Set) Contains(value interface{}) bool {
 	return s.Find(value) != nil
