@@ -20,6 +20,8 @@ package tt
 import (
 	"fmt"
 	"io"
+
+	"github.com/brennie/spaghetti/set"
 )
 
 // A solution to an instance.
@@ -84,6 +86,43 @@ func (s *Solution) Assign(event int, rat Rat) {
 
 	s.rats[event] = rat
 	s.events[ratIndex][event] = true
+}
+
+func (s *Solution) AssignAndShrink(event int, rat Rat, domains []set.Set) {
+	s.Assign(event, rat)
+
+	// Remove the assignment from the domains of all events.
+	for other := range domains {
+		if event != other {
+			domains[other].Remove(rat)
+		}
+	}
+
+	// Remove the time slot from all events that share a student.
+	for exclude := range s.inst.events[event].exclude {
+		for room := 0; room < s.inst.nRooms; room++ {
+			domains[exclude].Remove(Rat{room, rat.Time})
+		}
+	}
+
+	// Remove the domain entries from all events that must occur before it.
+	for before := range s.inst.events[event].before {
+		for room := 0; room < s.inst.nRooms; room++ {
+			for time := rat.Time; time < NTimes; time++ {
+				domains[before].Remove(Rat{room, time})
+			}
+		}
+	}
+
+	// Remove the domain entries from all events that must occur after it.
+	for after := range s.inst.events[event].after {
+		for room := 0; room < s.inst.nRooms; room++ {
+			for time := 0; time <= rat.Time; time++ {
+				domains[after].Remove(Rat{room, time})
+			}
+		}
+	}
+
 }
 
 // Determine the quality of each assignment, as determined by the number of

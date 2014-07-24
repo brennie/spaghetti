@@ -56,7 +56,7 @@ func (s *Set) Clear() {
 
 // Build a Set from a slice of elements. If compare cannot handle all of
 // elements, then there will probably be a panic from a failed type assertion.
-func FromList(compare Compare, elements []interface{}) (s Set) {
+func FromList(compare Compare, elements ...interface{}) (s Set) {
 	s = New(compare)
 
 	for i := range elements {

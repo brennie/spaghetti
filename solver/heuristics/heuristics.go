@@ -20,6 +20,7 @@ package heuristics
 import (
 	"math/rand"
 
+	"github.com/brennie/spaghetti/set"
 	"github.com/brennie/spaghetti/tt"
 )
 
@@ -30,5 +31,40 @@ func RandomAssignment(soln *tt.Solution) *tt.Solution {
 		rat := soln.Domains[event][rand.Intn(len(soln.Domains[event]))]
 		soln.Assign(event, rat)
 	}
+	return soln
+}
+
+// Follow the given variable ordering
+func RandomAssignmentWithOrdering(soln *tt.Solution, ordering []int) *tt.Solution {
+	domains := make([]set.Set, len(soln.Domains))
+	for event := range domains {
+		domains[event] = set.FromList(tt.RatCompare, soln.Domains[event])
+	}
+
+	unassigned := make(map[int]bool)
+
+	for _, event := range ordering {
+		if domains[event].Size() == 0 {
+			unassigned[event] = true
+		} else {
+			el := domains[event].First()
+
+			for offset := rand.Intn(domains[event].Size()); offset > 0; offset-- {
+				el = el.Next()
+			}
+
+			soln.AssignAndShrink(event, el.Value().(tt.Rat), domains)
+		}
+	}
+
+	for event := range unassigned {
+		ratIndex := rand.Intn(len(soln.Domains[event]))
+		soln.Assign(event, soln.Domains[event][ratIndex])
+	}
+
+	for event := range domains {
+		domains[event].Clear()
+	}
+
 	return soln
 }
