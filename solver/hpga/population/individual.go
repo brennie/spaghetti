@@ -46,7 +46,7 @@ func newIndividual(soln *tt.Solution, value ...tt.Value) *individual {
 func (i *individual) export() *Individual {
 	return &Individual{
 		i.soln.Assignments(),
-		i.soln.AssignmentQuality(),
+		i.soln.AssignmentQualities(),
 		i.success,
 		i.value,
 	}

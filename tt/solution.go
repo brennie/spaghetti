@@ -131,90 +131,85 @@ func (s *Solution) AssignAndShrink(event int, rat Rat, domains []set.Set) {
 // It is not the case that the solution value is the sum of the assignment
 // quality, as penalties will be counted for each event involved that violates
 // the constraint.
-//
-// XXX: Redo in terms of hard constraints instead of soft??
-func (s *Solution) AssignmentQuality() (quality []Value) {
+func (s *Solution) AssignmentQualities() (quality []Value) {
 	quality = make([]Value, s.inst.nEvents)
 
 	for event := range quality {
-		nStudents := len(s.inst.events[event].students)
+		quality[event] = s.AssignmentQuality(event)
+	}
 
-		time := s.rats[event].Time
-		startOfDay := time - time%9
-		endOfDay := startOfDay + 8
+	return
+}
 
-		for student := range s.attendance {
-			// First we find the number of consecutive events that the
-			// event is a part of.
-			blockStart := time
-			consecutive := 0
+// Determine the quality of a specific assignment, as determined by the number
+// of hard constraints and soft constraints it breaks.
+func (s *Solution) AssignmentQuality(event int) (quality Value) {
+	if event > s.inst.nEvents {
+		panic("Solution.AssignmentQuality: event > nEvents")
+	}
 
-			for blockStart > startOfDay && len(s.attendance[student][blockStart-1]) > 0 {
-				blockStart--
-			}
-			for t := blockStart; t <= endOfDay && len(s.attendance[student][blockStart]) > 0; t++ {
-				consecutive++
-			}
+	nStudents := len(s.inst.events[event].students)
+	time := s.rats[event].Time
+	startOfDay := time - time%9
+	endOfDay := startOfDay + 8
 
-			if consecutive > 2 {
-				quality[event].Fitness += consecutive - 2
-			} else {
-				// Find the total number of events on the day.
-				count := 0
-				for t := startOfDay; t <= endOfDay; t++ {
-					if len(s.attendance[student][t]) > 0 {
-						count++
-					}
+	// We find the number of consecutive events that the
+	// event is a part of.
+	for student := range s.inst.events[event].students {
+		blockStart := time
+		consecutive := 0
+
+		for blockStart > startOfDay && len(s.attendance[student][blockStart-1]) > 0 {
+			blockStart--
+		}
+		for t := blockStart; t <= endOfDay && len(s.attendance[student][blockStart]) > 0; t++ {
+			consecutive++
+		}
+
+		if consecutive > 2 {
+			quality.Fitness += consecutive - 2
+		} else {
+			// Find the total number of events in the day
+			count := 0
+			for t := startOfDay; t <= endOfDay; t++ {
+				if len(s.attendance[student][t]) > 0 {
+					count++
 				}
+			}
 
-				// If the student only attends one class (i.e., `event'),
-				// then the penality is 1 per student.
-				if count == 1 {
-					quality[event].Fitness++
-				}
+			if count == 1 {
+				quality.Fitness++
 			}
 		}
 
-		// If the event is scheduled at the end of the day, then the
-		// penalty is the number of students that would attend the event.
-		if time == endOfDay {
-			quality[event].Fitness += nStudents
-		}
-
-		// We consider ordering violations for events. Unlike in Violations(),
-		// we consider both the before and after relations because we are
-		// concerned with how well we have assigned each variable, not the
-		// quality of the overall solution.
-		for otherEvent := range s.inst.events[event].after {
-			if s.rats[otherEvent].Time <= s.rats[event].Time {
-				quality[event].Violations++
-			}
-		}
-
-		for otherEvent := range s.inst.events[event].before {
-			if s.rats[otherEvent].Time >= s.rats[event].Time {
-				quality[event].Violations++
-			}
+		if nEvents := len(s.attendance[student][time]); nEvents >= 2 {
+			quality.Violations += (nEvents * (nEvents - 1)) / 2
 		}
 	}
 
-	// We consider the number of students that must attend multiple events.
-	for student := range s.attendance {
-		for time := range s.attendance[student] {
-			if nEvents := len(s.attendance[student][time]); nEvents >= 2 {
-				for event := range s.attendance[student][time] {
-					quality[event].Violations += nEvents - 1
-				}
-			}
+	// If the event is scheduled at the end of the day, then the
+	// penalty is the number of students that would attend the event.
+	if time == endOfDay {
+		quality.Fitness += nStudents
+	}
+
+	// If there are multiple assignments to the event's room and time, then
+	// the penalty is the number of assignments minus one.
+	quality.Violations += len(s.events[s.rats[event].index()]) - 1
+
+	// We consider ordering violations for events. Unlike in Violations(),
+	// we consider both the before and after relations because we are
+	// concerned with how well we have assigned each variable, not the
+	// quality of the overall solution.
+	for after := range s.inst.events[event].after {
+		if s.rats[after].Time <= s.rats[event].Time {
+			quality.Violations++
 		}
 	}
 
-	// We consider the number of events assigned to each room and time.
-	for ratIndex := range s.events {
-		if nEvents := len(s.events[ratIndex]); nEvents >= 2 {
-			for event := range s.events[ratIndex] {
-				quality[event].Violations += nEvents - 1
-			}
+	for before := range s.inst.events[event].before {
+		if s.rats[before].Time >= s.rats[event].Time {
+			quality.Violations++
 		}
 	}
 
