@@ -376,26 +376,29 @@ func (s *Solution) Fitness() (fit int) {
 
 // Free the solution back to the object pool.
 func (s *Solution) Free() {
-	for event := range s.rats {
-		s.rats[event] = badRat
-	}
+	if s != nil {
 
-	for ratIndex := range s.events {
-		for event := range s.events[ratIndex] {
-			delete(s.events[ratIndex], event)
+		for event := range s.rats {
+			s.rats[event] = badRat
 		}
-	}
 
-	// Reset the attendance matrix
-	for student := range s.attendance {
-		for time := range s.attendance[student] {
-			for event := range s.attendance[student][time] {
-				delete(s.attendance[student][time], event)
+		for ratIndex := range s.events {
+			for event := range s.events[ratIndex] {
+				delete(s.events[ratIndex], event)
 			}
 		}
-	}
 
-	s.inst.solnPool.Put(s)
+		// Reset the attendance matrix
+		for student := range s.attendance {
+			for time := range s.attendance[student] {
+				for event := range s.attendance[student][time] {
+					delete(s.attendance[student][time], event)
+				}
+			}
+		}
+
+		s.inst.solnPool.Put(s)
+	}
 }
 
 // Determine the number of events involved in the solution (and problem
