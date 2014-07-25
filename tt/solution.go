@@ -216,6 +216,40 @@ func (s *Solution) AssignmentQuality(event int) (quality Value) {
 	return
 }
 
+// Determine the number of hard constraints broken by a single variable.
+//
+// This function is exactly like AssignmentQuality, but it only computes the
+// violations portion.
+func (s *Solution) AssignmentViolations(event int) (violations int) {
+	if event > s.inst.nEvents {
+		panic("Solution.AssignmentQuality: event > nEvents")
+	}
+
+	time := s.rats[event].Time
+
+	for student := range s.inst.events[event].students {
+		if nEvents := len(s.attendance[student][time]); nEvents >= 2 {
+			violations += (nEvents * (nEvents - 1)) / 2
+		}
+	}
+
+	violations += len(s.events[s.rats[event].index()]) - 1
+
+	for after := range s.inst.events[event].after {
+		if s.rats[after].Time <= s.rats[event].Time {
+			violations++
+		}
+	}
+
+	for before := range s.inst.events[event].before {
+		if s.rats[before].Time >= s.rats[event].Time {
+			violations++
+		}
+	}
+
+	return
+}
+
 // Determine if an assigned event has any hard constraint violations.
 func (s *Solution) HasViolations(event int) bool {
 	if event > s.inst.nEvents {
