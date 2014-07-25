@@ -31,14 +31,15 @@ import (
 // Solve a timetabling instance with an HPGA.
 func Solve(opts options.SolveOptions) {
 	if opts.Profile != nil {
-		cpuProfile, err := os.Create(opts.Profile.(string))
+		profileName := opts.Profile.(string)
+		cpuProfile, err := os.Create(profileName)
 		if err != nil {
 			log.Fatalf("Could not %s\n", err)
 		}
+		log.Printf("Writing profile to %s\n", profileName)
+		pprof.StartCPUProfile(cpuProfile)
 
-		pprof.StartCPUProfile()
-
-		defer cpuProfile.close()
+		defer cpuProfile.Close()
 		defer pprof.StopCPUProfile()
 	}
 

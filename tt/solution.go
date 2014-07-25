@@ -222,8 +222,12 @@ func (s *Solution) HasViolations(event int) bool {
 		panic("Solution.HasConflicts: event > nEvents")
 	}
 
-	if len(s.attendance[student][time]) >= 2 {
-		return true
+	time := s.rats[event].Time
+
+	for student := range s.inst.events[event].students {
+		if len(s.attendance[student][time]) >= 2 {
+			return true
+		}
 	}
 
 	if len(s.events[s.rats[event].index()]) > 1 {
