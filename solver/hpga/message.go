@@ -31,13 +31,17 @@ import (
 type messageType int
 
 const (
+	parentID = -1 // A parent's ID.
+	hcID     = -2 // The HC operator's ID.
+)
+
+const (
 	crossoverRequestMessageType  messageType = iota // A message containing a crossover request from a slave.
-	finMessageType                                  // The message saying the child has finished.
-	gmRequestMessageType                            // A request for a solution to perform the GM operator.
-	gmReplyMessageType                              // A reply to a gmRequestMessageType message.
-	solutionMessageType                             // A message containing a solution.
+	finMessageType                                  // The message saying the child has finished
 	individualRequestMessageType                    // An island requesting a solution from a slave.
 	individualReplyMessageType                      // A slave replying to an island for a crossover.
+	orderingMessageType                             // A message containing a variable ordering.
+	solutionMessageType                             // A message containing a solution.
 	stopMessageType                                 // The message telling the children to stop.
 	valueMessageType                                // A message containing a valuation.
 	waitMessageType                                 // A message containing a sync.WaitGroup
@@ -92,20 +96,6 @@ type finMessage struct{}
 
 // Get the messageType of a finMessage.
 func (_ finMessage) messageType() messageType { return finMessageType }
-
-// A request for a solution for genetic modification.
-type gmRequestMessage struct{}
-
-// Get the messageType of a gmRequestMessage.
-func (_ gmRequestMessage) messageType() messageType { return gmRequestMessageType }
-
-// A response to a gmRequestMessage with a solution.
-type gmReplyMessage struct {
-	soln []tt.Rat // The solution to modify
-}
-
-// Get the messageType of a gmReplyMessage.
-func (_ gmReplyMessage) messageType() messageType { return gmReplyMessageType }
 
 // A message containing a solution and its value.
 type solutionMessage struct {

@@ -35,7 +35,6 @@ type island struct {
 	child
 	inst     *tt.Instance // The timetabling instance.
 	topValue tt.Value     // The best value seen thus far.
-	gmTimer  *time.Timer  // A timer for the GM operation.
 }
 
 type crossoverRequest struct {
@@ -63,7 +62,6 @@ func newIsland(id int, inst *tt.Instance, toParent chan<- message, opts options.
 		},
 		inst,
 		tt.WorstValue(),
-		nil,
 	}
 
 	for child := 0; child < opts.NSlaves; child++ {
@@ -81,8 +79,6 @@ func (i *island) run() {
 
 	i.wait()
 	(<-i.fromParent).content.(waitMessage).wg.Done()
-
-	i.gmTimer = time.NewTimer(gmInterval)
 
 	for {
 		select {
@@ -107,10 +103,6 @@ func (i *island) run() {
 
 		case msg := <-i.fromChildren:
 			switch msg.messageType() {
-			case gmReplyMessageType:
-				individual := msg.content.(gmReplyMessage).soln
-				go i.runGM(individual, msg.source)
-
 			case solutionMessageType:
 				best, value := msg.content.(solutionMessage).soln, msg.content.(solutionMessage).value
 
@@ -173,27 +165,8 @@ func (i *island) run() {
 					child.Free()
 				}
 			}
-
-		case <-i.gmTimer.C:
-			child := rand.Intn(len(i.toChildren))
-
-			i.sendToChild(child, gmRequestMessage{})
 		}
 	}
-}
-
-// Run the genetic modification operation on the given individual.
-func (i *island) runGM(individual []tt.Rat, child int) {
-	soln := i.inst.SolutionFromRats(individual)
-
-	chromosome := rand.Intn(i.inst.NEvents())
-
-	gm(soln, chromosome)
-
-	i.sendToChild(child, solutionMessage{soln.Assignments(), soln.Value()})
-	soln.Free()
-
-	i.gmTimer.Reset(gmInterval)
 }
 
 // Send a stopMessageType message to all slaves under the island and wait for a

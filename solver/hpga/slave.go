@@ -65,9 +65,6 @@ func (s *slave) handleMessage(msg messageContent) (shouldExit bool) {
 			s.topValue = value
 		}
 
-	case gmRequestMessageType:
-		s.sendToParent(gmReplyMessage{s.pop.PickSolution()})
-
 	case individualRequestMessageType:
 		id := msg.(individualRequestMessage).id
 		s.sendToParent(individualReplyMessage{id, s.pop.PickIndividual()})
