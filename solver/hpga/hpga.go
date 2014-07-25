@@ -25,11 +25,6 @@ import (
 	"github.com/brennie/spaghetti/tt"
 )
 
-// The id of a parent. The source of a message isn't important when a child
-// receives it from the parent because only one go-routine can have a handle
-// to that channel.
-const parentID = -1
-
 // A parent process, which has child processes that it communicates to through
 // channels.
 type parent struct {

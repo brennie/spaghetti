@@ -121,6 +121,14 @@ type individualReplyMessage struct {
 	individual *population.Individual // The individual to crossover with.
 }
 
+// A message containing a variable ordering.
+type orderingMessage struct {
+	order []int // The variable odreing
+}
+
+// Get the messageType of an orderingMessage.
+func (_ orderingMessage) messageType() messageType { return orderingMessageType }
+
 // Get the messageType of a individualReplyMessage.
 func (_ individualReplyMessage) messageType() messageType { return individualReplyMessageType }
 
