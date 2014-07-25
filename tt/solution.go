@@ -157,16 +157,16 @@ func (s *Solution) AssignmentQuality(event int) (quality Value) {
 	// event is a part of.
 	for student := range s.inst.events[event].students {
 		blockStart := time
-		consecutive := 0
+		blockEnd := time
 
 		for blockStart > startOfDay && len(s.attendance[student][blockStart-1]) > 0 {
 			blockStart--
 		}
-		for t := blockStart; t <= endOfDay && len(s.attendance[student][blockStart]) > 0; t++ {
-			consecutive++
+		for blockEnd < endOfDay && len(s.attendance[student][blockEnd+1]) > 0 {
+			blockEnd++
 		}
 
-		if consecutive > 2 {
+		if consecutive := blockEnd - blockStart + 1; consecutive > 2 {
 			quality.Fitness += consecutive - 2
 		} else {
 			// Find the total number of events in the day
