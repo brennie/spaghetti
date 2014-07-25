@@ -20,6 +20,7 @@ package tt
 import (
 	"fmt"
 	"io"
+	"math/rand"
 
 	"github.com/brennie/spaghetti/set"
 )
@@ -283,9 +284,23 @@ func (s *Solution) HasViolations(event int) bool {
 	return false
 }
 
+// Find an event that can be improved, randomly. If one cannot be found, then
+// the return value is an event of -1 and an unassigned Rat.
+func (s *Solution) FindImprovement() (event int, rat Rat) {
+	for _, event = range rand.Perm(s.inst.nEvents) {
+		rat = s.improve(event)
+
+		if rat != badRat {
+			return
+		}
+	}
+
+	return
+}
+
 // Determine the best assignment for the given event if one exists. In the
 // even that one cannot be found, an unassigned Rat is returned.
-func (s *Solution) Improve(event int) Rat {
+func (s *Solution) improve(event int) Rat {
 	if event > s.inst.nEvents {
 		panic("Solution.Improve : event > nEvents")
 	}
