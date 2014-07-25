@@ -57,6 +57,36 @@ func newController(inst *tt.Instance, opts options.SolveOptions) *controller {
 	return c
 }
 
+func (c *controller) handleSolutionMessage(msg message) (shouldExit bool) {
+	soln := msg.content.(solutionMessage).soln
+	value := msg.content.(solutionMessage).value
+
+	if value.Less(c.topValue) {
+		c.topValue = value
+		c.top.Free()
+		c.top = c.inst.SolutionFromRats(soln)
+
+		log.Printf("Found new best solution: %s\n", c.topValue)
+
+		if c.topValue.IsIdeal() {
+			log.Println("Found ideal solution. Stopping...")
+			c.stopChildren()
+
+			return true
+		}
+
+		if msg.source != hcID {
+			for child := range c.toChildren {
+				if child != msg.source {
+					c.sendToChild(child, valueMessage{c.topValue})
+				}
+			}
+		}
+	}
+
+	return false
+}
+
 // Run the controller.
 func (c *controller) run(timeoutInterval int) (*tt.Solution, tt.Value) {
 	// Wait for islands to signal that their children have finished generating populations
@@ -68,34 +98,35 @@ func (c *controller) run(timeoutInterval int) (*tt.Solution, tt.Value) {
 	signals := make(chan os.Signal)
 	signal.Notify(signals, os.Interrupt)
 
+	hc := make(chan message)
+
+	go runHillClimbing(c.inst, hc)
+
 msgLoop:
 	for {
 		select {
 		case msg := <-c.fromChildren:
 			switch msg.messageType() {
 			case solutionMessageType:
-				soln := msg.content.(solutionMessage).soln
-				value := msg.content.(solutionMessage).value
-
-				if value.Less(c.topValue) {
-					c.topValue = value
-					c.top.Free()
-					c.top = c.inst.SolutionFromRats(soln)
-					log.Printf("Found new best solution: %s\n", c.topValue)
-
-					if c.topValue.IsIdeal() {
-						log.Println("Found ideal solution. Stopping...")
-						c.stopChildren()
-						break msgLoop
-					}
-
-					for child := range c.toChildren {
-						if child != msg.source {
-							c.sendToChild(child, valueMessage{c.topValue})
-						}
-					}
+				if shouldExit := c.handleSolutionMessage(msg); shouldExit {
+					break msgLoop
 				}
 			}
+
+		case msg := <-hc:
+			switch msg.messageType() {
+			case solutionMessageType:
+				if shouldExit := c.handleSolutionMessage(msg); shouldExit {
+					break msgLoop
+				}
+
+			case orderingMessageType:
+				order := msg.content.(orderingMessage).order
+				for child := range c.toChildren {
+					c.sendToChild(child, orderingMessage{order})
+				}
+			}
+
 		case <-timeout:
 			log.Println("Timeout: stopping...")
 			c.stopChildren()
