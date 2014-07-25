@@ -21,6 +21,7 @@ package solver
 import (
 	"log"
 	"os"
+	"runtime/pprof"
 
 	"github.com/brennie/spaghetti/options"
 	"github.com/brennie/spaghetti/solver/hpga"
@@ -29,6 +30,18 @@ import (
 
 // Solve a timetabling instance with an HPGA.
 func Solve(opts options.SolveOptions) {
+	if opts.Profile != nil {
+		cpuProfile, err := os.Create(opts.Profile.(string))
+		if err != nil {
+			log.Fatalf("Could not %s\n", err)
+		}
+
+		pprof.StartCPUProfile()
+
+		defer cpuProfile.close()
+		defer pprof.StopCPUProfile()
+	}
+
 	instFile, err := os.Open(opts.Instance)
 	if err != nil {
 		log.Fatalf("Could not %s\n", err)

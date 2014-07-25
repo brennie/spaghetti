@@ -89,14 +89,15 @@ func (o FetchOptions) Mode() Mode {
 
 // Commandline options for the solve Mode
 type SolveOptions struct {
-	Instance string // The instance we are solving or checking.
-	Solution string // The filename for the resultant solution.
-	NIslands int    // The number of islands.
-	NSlaves  int    // The number of slaves per island.
-	MinPop   int    // The minimum population of each island.
-	MaxPop   int    // The maximum population of each island.
-	Seed     int64  // The seed for the random number generator.
-	Timeout  int    // The timeout in minutes.
+	Instance string      // The instance we are solving or checking.
+	Solution string      // The filename for the resultant solution.
+	NIslands int         // The number of islands.
+	NSlaves  int         // The number of slaves per island.
+	MinPop   int         // The minimum population of each island.
+	MaxPop   int         // The maximum population of each island.
+	Profile  interface{} // Either a string or nil. Determines if profiling should be enabled.
+	Seed     int64       // The seed for the random number generator.
+	Timeout  int         // The timeout in minutes.
 }
 
 func (o SolveOptions) Mode() Mode {
@@ -183,6 +184,12 @@ func parseSolveOptions(args map[string]interface{}) (opts SolveOptions) {
 	opts.Timeout, err = strconv.Atoi(args["--timeout"].(string))
 	if err != nil {
 		log.Fatalf("Invalid value for --timeout: %s\n", args["--timeout"].(string))
+	}
+
+	if profileName := args["--profile"]; profileName != nil {
+		opts.Profile = profileName
+	} else {
+		opts.Profile = nil
 	}
 
 	if seed := args["--seed"]; seed != nil {
