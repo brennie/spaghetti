@@ -437,21 +437,3 @@ func (s *Solution) Write(w io.Writer) {
 		fmt.Fprintf(w, "%d %d\n", rat.Time, rat.Room)
 	}
 }
-
-// Unassign the given event.
-func (s *Solution) Unassign(eventIndex int) {
-	if eventIndex > s.inst.nEvents {
-		panic("Solution.Unassign: eventIndex > nEvents")
-	} else if s.rats[eventIndex].Assigned() {
-		event := &s.inst.events[eventIndex]
-		rat := s.rats[eventIndex]
-
-		// Remove all entries from the attendance matrix.
-		for student := range event.students {
-			delete(s.attendance[student][rat.Time], eventIndex)
-		}
-
-		s.rats[eventIndex] = badRat
-		delete(s.events[rat.index()], eventIndex)
-	}
-}
