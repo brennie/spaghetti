@@ -32,44 +32,73 @@ const (
 	maxMutate float64    = 0.2   // The maximum percentage of an individual to mutate
 )
 
-// Do a crossover between the mother and the father into the (empty) child
-// solution and return its value.
-func Crossover(mother, father *Individual, child *tt.Solution) (childValue tt.Value) {
-	pMother := float64(0.5 + (mother.Success.Ratio()-father.Success.Ratio())*0.5)
-	for event := range mother.Assignments {
+func (p *Population) Crossover(motherPop, fatherPop int, inst *tt.Instance) (child *tt.Solution, value tt.Value) {
+	if motherPop > p.count || fatherPop > p.count {
+		panic("Population.Crossover: population out of bounds")
+	}
+
+	mother := p.subPops[motherPop].pop[rand.Intn(p.subPops[motherPop].length)]
+	father := p.subPops[fatherPop].pop[rand.Intn(p.subPops[fatherPop].length)]
+
+	child, value = crossover(mother, father, inst)
+	p.subPops[motherPop].Insert(child, value)
+
+	return
+}
+
+func (p *SubPopulation) Crossover(inst *tt.Instance) (*tt.Solution, tt.Value) {
+	mIndex := rand.Intn(p.length)
+	fIndex := rand.Intn(p.length - 1)
+	if fIndex >= mIndex {
+		fIndex++
+	}
+
+	return crossover(p.pop[mIndex], p.pop[fIndex], inst)
+}
+
+func crossover(mother, father *individual, inst *tt.Instance) (child *tt.Solution, value tt.Value) {
+	pMother := float64(0.5 + (mother.success.ratio()-father.success.ratio())*0.5)
+
+	child = inst.NewSolution()
+	for event := 0; event < inst.NEvents(); event++ {
 		parent := mother
 		if mask(mother, father, event, pMother) == useFather {
 			parent = father
 		}
 
-		if rat := parent.Assignments[event]; rat.Assigned() {
+		if rat := parent.soln.RatAt(event); rat.Assigned() {
 			child.Assign(event, rat)
 		}
 	}
-	childValue = child.Value()
+	value = child.Value()
 
-	mother.didCrossover(childValue)
-	father.didCrossover(childValue)
+	mother.didCrossover(value)
+	father.didCrossover(value)
 
-	return childValue
+	return
 }
 
 // Generate the crossover mask for the specific event in the two individuals.
-func mask(mother, father *Individual, event int, pMother float64) parentMask {
-	if mother.Quality[event].Less(father.Quality[event]) {
+func mask(mother, father *individual, event int, pMother float64) parentMask {
+	mQual := mother.soln.AssignmentQuality(event)
+	fQual := father.soln.AssignmentQuality(event)
+
+	if mQual.Less(fQual) {
 		return useMother
-	} else if father.Quality[event].Less(mother.Quality[event]) {
+	} else if fQual.Less(mQual) {
 		return useFather
 	} else if rand.Float64() < pMother {
 		return useMother
 	} else {
 		return useFather
 	}
-
 }
 
-// Mutate a solution.
-func Mutate(mutant *tt.Solution) (value tt.Value) {
+// Mutate one member of a given population and return the solution and the value
+func (p *SubPopulation) MutateOne() (mutant *tt.Solution, value tt.Value) {
+	picked := rand.Intn(p.length)
+	mutant = p.pop[picked].soln.Clone()
+
 	nEvents := mutant.NEvents()
 	max := int(maxMutate * float64(nEvents))
 	nMutations := rand.Intn(max) + 1 // nMutations is in the range [1, max]
@@ -85,13 +114,8 @@ func Mutate(mutant *tt.Solution) (value tt.Value) {
 		mutant.Assign(event, rat)
 	}
 
-	return mutant.Value()
-}
+	value = mutant.Value()
 
-// Mutate one member of a given population and return the solution and the value
-func (p *SubPopulation) MutateOne() (mutant *tt.Solution, value tt.Value) {
-	mutant = p.RemoveOne()
-	value = Mutate(mutant)
 	return
 }
 

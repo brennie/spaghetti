@@ -249,6 +249,19 @@ func (s *Solution) AssignmentViolations(event int) (violations int) {
 	return
 }
 
+// Create a copy of a solution.
+func (s *Solution) Clone() (clone *Solution) {
+	clone = s.inst.NewSolution()
+
+	for event, rat := range s.rats {
+		if rat.Assigned() {
+			clone.Assign(event, rat)
+		}
+	}
+
+	return clone
+}
+
 // Determine if an assigned event has any hard constraint violations.
 func (s *Solution) HasViolations(event int) bool {
 	if event > s.inst.nEvents {

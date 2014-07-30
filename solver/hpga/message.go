@@ -21,7 +21,6 @@ import (
 	"log"
 	"sync"
 
-	"github.com/brennie/spaghetti/solver/hpga/population"
 	"github.com/brennie/spaghetti/tt"
 )
 
@@ -31,22 +30,21 @@ import (
 type messageType int
 
 const (
-	parentID = -1 // A parent's ID.
-	hcID     = -2 // The HC operator's ID.
+	parentID   = -1 // A parent's ID.
+	hcID       = -2 // The HC operator's ID.
+	newRequest = -1 // ID for a new crossover request.
 )
 
 const (
-	continueMessageType          messageType = iota // A message telling a child to continue.
-	crossoverRequestMessageType                     // A message containing a crossover request from a slave.
-	finMessageType                                  // The message saying the child has finished.
-	fullMessageType                                 // The message saying the slave's population is full.
-	individualRequestMessageType                    // An island requesting a solution from a slave.
-	individualReplyMessageType                      // A slave replying to an island for a crossover.
-	orderingMessageType                             // A message containing a variable ordering.
-	solutionMessageType                             // A message containing a solution.
-	stopMessageType                                 // The message telling the children to stop.
-	valueMessageType                                // A message containing a valuation.
-	waitMessageType                                 // A message containing a sync.WaitGroup
+	continueMessageType  messageType = iota // A message telling a child to continue.
+	crossoverMessageType                    // A message containing a crossover request from a slave.
+	finMessageType                          // The message saying the child has finished.
+	fullMessageType                         // The message saying the slave's population is full.
+	orderingMessageType                     // A message containing a variable ordering.
+	solutionMessageType                     // A message containing a solution.
+	stopMessageType                         // The message telling the children to stop.
+	valueMessageType                        // A message containing a valuation.
+	waitMessageType                         // A message containing a sync.WaitGroup
 )
 
 // A message
@@ -92,12 +90,12 @@ type continueMessage struct{}
 func (_ continueMessage) messageType() messageType { return continueMessageType }
 
 // A crossover request from a slave to an island. This is used for foreign crossovers.
-type crossoverRequestMessage struct {
-	individual *population.Individual // The individual to crossover with.
+type crossoverMessage struct {
+	id int // The crossover's id (local to island). An id of -1 indicates a new request.
 }
 
 // Get the messageType of a crossoverRequestMessage.
-func (_ crossoverRequestMessage) messageType() messageType { return crossoverRequestMessageType }
+func (_ crossoverMessage) messageType() messageType { return crossoverMessageType }
 
 // A message indicating that a child has finished.
 type finMessage struct{}
@@ -120,21 +118,6 @@ type solutionMessage struct {
 // Get the messageType of a solutionMessage.
 func (_ solutionMessage) messageType() messageType { return solutionMessageType }
 
-// A solution request from an island to a slave with a given identifier. This
-// is used to request a solution for crossover from a slave.
-type individualRequestMessage struct {
-	id int // The request identifier.
-}
-
-// Get the messageType of a individualRequestMessage.
-func (_ individualRequestMessage) messageType() messageType { return individualRequestMessageType }
-
-// A reply to a individualRequestMessage.
-type individualReplyMessage struct {
-	id         int                    // The id from the individualRequestMessage.
-	individual *population.Individual // The individual to crossover with.
-}
-
 // A message containing a variable ordering.
 type orderingMessage struct {
 	order []int // The variable odreing
@@ -142,9 +125,6 @@ type orderingMessage struct {
 
 // Get the messageType of an orderingMessage.
 func (_ orderingMessage) messageType() messageType { return orderingMessageType }
-
-// Get the messageType of a individualReplyMessage.
-func (_ individualReplyMessage) messageType() messageType { return individualReplyMessageType }
 
 // A message indicating that a child should stop.
 type stopMessage struct{}

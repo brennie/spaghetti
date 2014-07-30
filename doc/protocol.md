@@ -35,8 +35,8 @@ Islands are mostly message relayers
   1. If there is a `stopMessage`, enter the shutdown phase.
   2. Else If there is a `valueMessage`, forward it to the slaves if the value is better than the currently known best.
  2. If there is no message from the parent, check for a message from the children.
-  1. If there is a `crossoverRequestMessage`, select a child at random to send an empty `individualRequestMessage`. Add the request to the queue of outstanding crossover requests.
-  2. Else if there is an `individualReplyMessage`, do the crossover with the first outstanding request and send an `solutionMessage` to the origin of the first `crossoverRequestMessage`.
+  1. If there is a `crossoverMessage`, select a child at random to send an empty `crossoverMessage`. Add the request to the queue of outstanding crossover requests.
+  2. Else if there is an `crossoverMessage`, do the crossover with the first outstanding request and send an `solutionMessage` to the origin of the first `crossoverMessage`.
   3. Else if there is a `solutionMessage` from a child, determine if the value contained is better than then currently known value and forward it to the controller if so. Likewise, a `valueMessage` is sent to all children. Otherwise, ignore it.
   4. Else if there is a `fullMesage` from a child, check if all children's populations are full. If so, do a selection and notify the children they can continue via a `continueMessage`.
 
@@ -46,12 +46,12 @@ First the slaves each generate a number of individuals (using the `RandomVariabl
  1. Check for a message from the parent
   1. If there is a `stopMessage`, enter the shutdown phase.
   2. Else if there is a `valueMessage`, then update the current global best value.
-  3. Else if there is a `individualRequestMessage`, then respond with a `individualReplyMessage` containing a population member.
+  3. Else if there is a `crossoverMessage`, then respond with a `crossoverMessage` containing a population member.
   4. Else if there is a `solutionMessage`, add the individual to the population.
  2. If there is no message, generate a value $p$ in the interval $[0, 1]$.
   1. If $p < P_\mathrm{mutate}$, mutate a population member at random
   2. Else if $p < P_\mathrm{xover}$, do a local crossover between two population members at random.
-  3. Else do a foreign crossover by sending a `crossoverRequestMessage` to the island with a population member chosen at random.
+  3. Else do a foreign crossover by sending a `crossoverMessage` to the island with a population member chosen at random.
   4. If a newly generated member has a better (distance, fitness) tuple than is currently known, update it and send a `solutionMessage` with a copy of the solution to the controlling island.
  3. If the population has reached its maximum size, send a `fullMessage` to its parent and wait for a `continueMessage`. Continue processing messages until it arrives.
 

@@ -22,14 +22,14 @@ import "sync"
 // A success ratio, which describes how often the associated individual in a
 // population is involved in successful reproductions (i.e., ones where the
 // resultant individual is of a higher quality than the parent).
-type Success struct {
+type success struct {
 	crossovers int // The number of crossovers.
 	successes  int // The number of successful reproductions.
 	mutex      sync.RWMutex
 }
 
 // Get the success ratio.
-func (s *Success) Ratio() (ratio float64) {
+func (s *success) ratio() (ratio float64) {
 	s.mutex.RLock()
 	if s.successes == 0 {
 		ratio = 0

@@ -63,6 +63,7 @@ func Solve(opts options.SolveOptions) {
 
 	log.Printf("Using seed %d\n", opts.Seed)
 
+	log.Printf("Running solver on %s\n", opts.Instance)
 	soln, value := hpga.Run(inst, opts)
 
 	log.Printf("Writing solution with value %s to file %s\n", value, opts.Solution)

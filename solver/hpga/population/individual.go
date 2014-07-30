@@ -23,7 +23,7 @@ import "github.com/brennie/spaghetti/tt"
 type individual struct {
 	soln    *tt.Solution // The corresponding solution.
 	value   tt.Value     // The corresponding value.
-	success *Success     // The success ratio of the individual.
+	success *success     // The success ratio of the individual.
 }
 
 // Create a new individual from the given solution and optional value. If the
@@ -31,41 +31,22 @@ type individual struct {
 func newIndividual(soln *tt.Solution, value ...tt.Value) *individual {
 	switch len(value) {
 	case 0:
-		return &individual{soln, soln.Value(), &Success{}}
+		return &individual{soln, soln.Value(), &success{}}
 
 	case 1:
-		return &individual{soln, value[0], &Success{}}
+		return &individual{soln, value[0], &success{}}
 
 	default:
 		panic("population: newIndividual: len(value) > 1")
 	}
 }
 
-// Transform an *individual into an *Individual, so that it may be exported to
-// other packages.
-func (i *individual) export() *Individual {
-	return &Individual{
-		i.soln.Assignments(),
-		i.soln.AssignmentQualities(),
-		i.success,
-		i.value,
-	}
-}
-
-// An individual that can be crossed over
-type Individual struct {
-	Assignments []tt.Rat   // The assignments.
-	Quality     []tt.Value // The assignments' quality.
-	Success     *Success   // The success ratio of the individual.
-	Value       tt.Value   // The value of the solution.
-}
-
 // Report the result of a crossover.
-func (i *Individual) didCrossover(childValue tt.Value) {
-	i.Success.mutex.Lock()
-	if childValue.Less(i.Value) {
-		i.Success.successes++
+func (i *individual) didCrossover(childValue tt.Value) {
+	i.success.mutex.Lock()
+	if childValue.Less(i.value) {
+		i.success.successes++
 	}
-	i.Success.crossovers++
-	i.Success.mutex.Unlock()
+	i.success.crossovers++
+	i.success.mutex.Unlock()
 }

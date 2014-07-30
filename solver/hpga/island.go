@@ -39,12 +39,6 @@ type island struct {
 	ordering []int                  // The variable ordering for the GM operator.
 }
 
-// A crossover request.
-type crossoverRequest struct {
-	origin int                    // The slave that requested the crossover.
-	mother *population.Individual // The first parent to crossover with.
-}
-
 // Create a new island with the given id and number of slaves. The given
 // channel is the channel the island should use to communicate with the
 // controller. The channel returned is the channel the controller should use to
@@ -78,14 +72,21 @@ func newIsland(id int, inst *tt.Instance, toParent chan<- message, opts options.
 	return fromParent
 }
 
+// Perform selection and notify the children that they can continue.
+func (i *island) doSelection() {
+	i.pop.Select()
+
+	for child := range i.toChildren {
+		i.sendToChild(child, continueMessage{})
+	}
+}
+
 // Run the island.
 func (i *island) run() {
-	crossovers := make(map[int]crossoverRequest)
+	crossovers := make(map[int]int) // Map crossover id -> child id
 
 	i.wait()
 	(<-i.fromParent).content.(waitMessage).wg.Done()
-
-	full := make(map[int]bool)
 
 	for {
 		select {
@@ -124,65 +125,60 @@ func (i *island) run() {
 					}
 				}
 
-			case crossoverRequestMessageType:
-				request := msg.content.(crossoverRequestMessage)
+			case crossoverMessageType:
+				request := msg.content.(crossoverMessage)
 
-				// Generate a currently unused crossover id
-				id := rand.Int()
-				for _, used := crossovers[id]; used; {
-					id = rand.Int()
-				}
+				if request.id == newRequest {
 
-				crossovers[id] = crossoverRequest{msg.source, request.individual}
-
-				// We generate a random number in [0, N-1) as there are N-1 other
-				// slaves under the i. We can then map all n >= nSource to
-				// n+1 to get a uniform probability that any slave that is not the
-				// source is picked.
-				other := rand.Intn(len(i.toChildren) - 1)
-				if other >= msg.source {
-					other++
-				}
-
-				i.sendToChild(other, individualRequestMessage{id})
-
-			case individualReplyMessageType:
-				id := msg.content.(individualReplyMessage).id
-
-				if _, used := crossovers[id]; used {
-					reply := msg.content.(individualReplyMessage)
-					child := i.inst.NewSolution()
-
-					population.Crossover(crossovers[id].mother, reply.individual, child)
-					value := child.Value()
-					assignments := child.Assignments()
-					i.sendToChild(crossovers[id].origin, solutionMessage{assignments, value})
-
-					if value.Less(i.topValue) {
-						i.topValue = value
-						for child := range i.toChildren {
-							if child != crossovers[id].origin {
-								i.sendToChild(child, valueMessage{value})
-							}
-						}
-						i.sendToParent(solutionMessage{assignments, value})
+					// Generate a currently unused crossover id
+					id := rand.Int()
+					for _, used := crossovers[id]; used; {
+						id = rand.Int()
 					}
 
-					delete(crossovers, id)
-					child.Free()
+					crossovers[id] = msg.source
+
+					// We generate a random number in [0, N-1) as there are N-1 other
+					// slaves under the i. We can then map all n >= nSource to
+					// n+1 to get a uniform probability that any slave that is not the
+					// source is picked.
+					other := rand.Intn(len(i.toChildren) - 1)
+					if other >= msg.source {
+						other++
+					}
+
+					i.sendToChild(other, crossoverMessage{id})
+				} else {
+					if _, used := crossovers[request.id]; used {
+						origin := crossovers[request.id]
+						child, value := i.pop.Crossover(origin, msg.source, i.inst)
+
+						if value.Less(i.topValue) {
+							i.topValue = value
+
+							for child := range i.toChildren {
+								i.sendToChild(child, valueMessage{value})
+							}
+							i.sendToParent(solutionMessage{child.Assignments(), value})
+						}
+
+						if i.pop.IsSubPopulationFull(origin) {
+							if i.pop.ShouldSelect() {
+								i.doSelection()
+							}
+						} else {
+							i.sendToChild(origin, continueMessage{})
+						}
+
+						i.sendToChild(msg.source, continueMessage{})
+
+						delete(crossovers, request.id)
+					}
 				}
 
 			case fullMessageType:
-				full[msg.source] = true
-
-				if len(full) == len(i.toChildren) {
-					i.pop.Select()
-
-					for child := range i.toChildren {
-						delete(full, child)
-
-						i.sendToChild(child, continueMessage{})
-					}
+				if i.pop.ShouldSelect() {
+					i.doSelection()
 				}
 			}
 		}

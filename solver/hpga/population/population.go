@@ -63,6 +63,15 @@ func New(minSize, maxSize, count int) *Population {
 	return p
 }
 
+func (p *Population) ShouldSelect() bool {
+	for index := range p.subPops {
+		if !p.subPops[index].IsFull() {
+			return false
+		}
+	}
+	return true
+}
+
 // Get the sub-population at the given index.
 func (p *Population) SubPopulation(index int) *SubPopulation {
 	if index > p.count {
@@ -70,6 +79,14 @@ func (p *Population) SubPopulation(index int) *SubPopulation {
 	}
 
 	return p.subPops[index]
+}
+
+func (p *Population) IsSubPopulationFull(index int) bool {
+	if index > p.count {
+		panic("Population.SubPopulation: index out of range")
+	}
+
+	return p.subPops[index].IsFull()
 }
 
 // Return the length of the population.

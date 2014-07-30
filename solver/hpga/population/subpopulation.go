@@ -18,8 +18,6 @@
 package population
 
 import (
-	"math/rand"
-
 	"github.com/brennie/spaghetti/solver/heuristics"
 	"github.com/brennie/spaghetti/tt"
 )
@@ -30,11 +28,6 @@ type SubPopulation struct {
 	length  int           // The length of the sub-population
 	minSize int           // The minimum size
 	maxSize int           // the maxium size
-}
-
-// Determine if the sub-population is full.
-func (p *SubPopulation) Full() bool {
-	return p.length == p.maxSize
 }
 
 // Generate minPop individuals randomly.
@@ -78,38 +71,12 @@ func (p *SubPopulation) Insert(soln *tt.Solution, value ...tt.Value) {
 	p.length++
 }
 
-// Return an individual so that it may be crossed over.
-func (p *SubPopulation) PickIndividual() *Individual {
-	if p.length == 0 {
-		panic("SubPopulation.PickIndividual: empty SubPopulation")
-	}
-	picked := rand.Intn(p.length)
-	return p.pop[picked].export()
+// Determine if the sub-population is full.
+func (p *SubPopulation) IsFull() bool {
+	return p.length == p.maxSize
 }
 
-// Pick a member of the population randomly.
-func (p *SubPopulation) PickSolution() []tt.Rat {
-	if p.length == 0 {
-		panic("SubPopulation.PickSolution: empty SubPopulation")
-	}
-	picked := rand.Intn(p.length)
-	return p.pop[picked].soln.Assignments()
-}
-
-// Remove one solution from th population, chosen at random.
-func (p *SubPopulation) RemoveOne() (soln *tt.Solution) {
-	if p.length == 0 {
-		panic("SubPopulation.RemoveOne: empty SubPopulation")
-	} else if p.length == 1 {
-		soln = p.pop[0].soln
-		p.pop[0] = nil
-	} else {
-		picked := rand.Intn(p.length)
-		soln = p.pop[picked].soln
-		p.length--
-		p.pop[picked] = p.pop[p.length]
-		p.pop[p.length] = nil
-	}
-
-	return
+// Get the length of the sub-population
+func (p *SubPopulation) Len() int {
+	return p.length
 }

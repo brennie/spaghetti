@@ -84,9 +84,10 @@ func (s *slave) handleMessage(msg messageContent) (shouldExit bool) {
 			s.topValue = value
 		}
 
-	case individualRequestMessageType:
-		id := msg.(individualRequestMessage).id
-		s.sendToParent(individualReplyMessage{id, s.pop.PickIndividual()})
+	case crossoverMessageType:
+		id := msg.(crossoverMessage).id
+		s.sendToParent(crossoverMessage{id})
+		_, shouldExit = s.waitFor(continueMessageType)
 
 	case stopMessageType:
 		shouldExit = true
@@ -132,12 +133,7 @@ func (s *slave) run() {
 			if prob < pMutate {
 				individual, value = s.pop.MutateOne()
 			} else {
-				mother := s.pop.PickIndividual()
-				father := s.pop.PickIndividual()
-
-				individual = s.inst.NewSolution()
-
-				value = population.Crossover(mother, father, individual)
+				individual, value = s.pop.Crossover(s.inst)
 			}
 
 			s.pop.Insert(individual)
@@ -147,7 +143,7 @@ func (s *slave) run() {
 				s.sendToParent(solutionMessage{individual.Assignments(), topValue})
 			}
 
-			if s.pop.Full() {
+			if s.pop.IsFull() {
 				s.sendToParent(fullMessage{})
 
 				if _, shouldExit := s.waitFor(continueMessageType); shouldExit {
@@ -156,33 +152,10 @@ func (s *slave) run() {
 			}
 
 		} else {
-			s.sendToParent(crossoverRequestMessage{s.pop.PickIndividual()})
-
-			// We wait for a solutionMessageType message and process messages in the
-			// mean time. We do this as try to not overload the island with
-			// messages.
-			var msg messageContent
-			var shouldExit bool
-
-			if msg, shouldExit = s.waitFor(solutionMessageType); shouldExit {
+			s.sendToParent(crossoverMessage{newRequest})
+			// We wait for a continueMessage from the island to tell us that the crossover has completed.
+			if _, shouldExit := s.waitFor(continueMessageType); shouldExit {
 				return
-			}
-
-			soln := msg.(solutionMessage).soln
-			value := msg.(solutionMessage).value
-
-			s.pop.Insert(s.inst.SolutionFromRats(soln))
-
-			if value.Less(topValue) {
-				topValue = value
-			}
-
-			if s.pop.Full() {
-				s.sendToParent(fullMessage{})
-
-				if _, shouldExit = s.waitFor(continueMessageType); shouldExit {
-					return
-				}
 			}
 
 		}
