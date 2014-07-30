@@ -18,131 +18,74 @@
 // The package describing genetic algorithm populations.
 package population
 
-import (
-	"container/heap"
-	"fmt"
-	"math/rand"
+import "fmt"
 
-	"github.com/brennie/spaghetti/solver/heuristics"
-	"github.com/brennie/spaghetti/tt"
-)
+type population []*individual
 
-// A population.
 type Population struct {
-	heap    popHeap // The actual heap with population members.
-	minSize int     // The minimum number of individuals in the population.
-	maxSize int     // The maximum number of individuals in the population.
+	pop     population // The total population
+	minSize int        // The minimum size of a sub-population
+	maxSize int        // The maximum size of a sub-population
+	count   int        // The number of sub-populations
+
+	subPops []*SubPopulation // The sub-populations
+
+	temp [][]*individual // Slices for doing selection
+
 }
 
-// Generate a population of size minSize using the random variable order
-// heuristic.
-func New(inst *tt.Instance, minSize, maxSize int) (p *Population) {
+// Create a new population of size coun
+func New(minSize, maxSize, count int) *Population {
 	if maxSize <= minSize {
 		panic(fmt.Sprintf("population.New: maxSize (%d) <= minSize (%d)", maxSize, minSize))
 	}
 
-	p = &Population{
-		make(popHeap, minSize, maxSize),
+	p := &Population{
+		make([]*individual, maxSize*count),
 		minSize,
 		maxSize,
+		count,
+		make([]*SubPopulation, count),
+		make([][]*individual, count),
 	}
 
-	for i := 0; i < minSize; i++ {
-		p.heap[i] = newIndividual(heuristics.RandomAssignment(inst.NewSolution()))
+	for i := range p.subPops {
+		p.subPops[i] = &SubPopulation{
+			p.pop[i*maxSize : (i+1)*maxSize],
+			0,
+			minSize,
+			maxSize,
+		}
+
+		p.temp[i] = make([]*individual, minSize)
 	}
 
-	heap.Init(&p.heap)
-
-	return
+	return p
 }
 
-// Determine the size of the population.
-func (p *Population) Size() int {
-	return len(p.heap)
-}
-
-// Do selection so that the population has at most MinSize members.
-func (p *Population) Select() {
-	if p.Size() <= p.minSize {
-		return
+// Get the sub-population at the given index.
+func (p *Population) SubPopulation(index int) *SubPopulation {
+	if index > p.count {
+		panic("Population.SubPopulation: index out of range")
 	}
 
-	// We do in-place heap sort so that elements [MaxSize - Minsize, MaxSize)
-	// are sorted in increasing order. We copy the underlying slice as heap.Pop
-	// will shrink it and we need access to the whole thing (so that we can
-	// reverse it).
-	oldLen := p.Size()
-	copy := p.heap[:]
-	for i, j := 0, oldLen-1; i < p.minSize; i, j = i+1, j-1 {
-		// heap.Pop will only return the *tt.Solution part of the underlying
-		// individual. Hence we copy the value before popping so that we can
-		// save it and put it in the appropriate place without re-calculating
-		// the value of the solution.
-		value := p.heap[0]
-		heap.Pop(&p.heap)
-		copy[j] = value
-	}
-
-	// Now we restore the heap. Elmements [MaxSize - Minsize, MaxSize) are
-	// currently sorted in decreasing order so we do swaps such that
-	// [0, MinSize) is sorted in increasing order. We note that this restores
-	// the heap order property so we do not have to do heap.Init()
-	p.heap = copy
-	for i, j := 0, oldLen-1; i < j; i, j = i+1, j-1 {
-		p.heap.Swap(i, j)
-	}
-
-	// Nil all pointers that are used in the no-longer-needed solutions.
-	for i := p.minSize; i < oldLen; i++ {
-		p.heap[i].soln.Free()
-		p.heap[i].soln = nil
-		p.heap[i].success = nil
-		p.heap[i] = nil
-	}
-
-	// We can drop all the rest of the elements so that we only have a heap of
-	// MinSize elements.
-	p.heap = p.heap[0:p.minSize]
+	return p.subPops[index]
 }
 
-// Insert a member into the population. If the population is full, do selection
-// first.
-func (p *Population) Insert(soln *tt.Solution) {
-	p.insert(soln, soln.Value())
+// Return the length of the population.
+//
+// NB: This will always return the same number because we are not appending to
+// or slicing the population.
+func (p population) Len() int {
+	return len(p)
 }
 
-func (p *Population) insert(soln *tt.Solution, value tt.Value) {
-	if p.Size() == p.maxSize {
-		p.Select()
-	}
-
-	heap.Push(&p.heap, newIndividual(soln, value))
+// Compare two members of the population.
+func (p population) Less(i, j int) bool {
+	return p[i].value.Less(p[j].value)
 }
 
-// Determine the best member of the population. A solution picked this way must
-// not be modified.
-func (p *Population) Best() (*tt.Solution, tt.Value) {
-	return p.heap[0].soln, p.heap[0].value
-}
-
-// Pick a member randomly using the given random number generator. A solution
-// picked this way must not be modified. To pick a member randomly and modify
-// it, use RemoveOne followed by Insert.
-func (p *Population) PickSolution() []tt.Rat {
-	return p.heap[rand.Intn(p.Size())].soln.Assignments()
-}
-
-// Return an individual so that it may be crossed over.
-func (p *Population) PickIndividual() *Individual {
-	return p.heap[rand.Intn(p.Size())].export()
-}
-
-// Remove one solution from the population, chosen at random.
-func (p *Population) RemoveOne() (soln *tt.Solution) {
-	index := rand.Intn(p.Size())
-	soln = p.heap[index].soln
-
-	heap.Remove(&p.heap, index)
-
-	return
+// Swap two members of the population.
+func (p population) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
 }

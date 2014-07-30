@@ -33,11 +33,13 @@ const gmInterval = 5 * time.Minute
 type island struct {
 	parent
 	child
-	inst     *tt.Instance // The timetabling instance.
-	topValue tt.Value     // The best value seen thus far.
-	ordering []int        // The variable ordering for the GM operator.
+	inst     *tt.Instance           // The timetabling instance.
+	pop      *population.Population // The island's population
+	topValue tt.Value               // The best value seen thus far.
+	ordering []int                  // The variable ordering for the GM operator.
 }
 
+// A crossover request.
 type crossoverRequest struct {
 	origin int                    // The slave that requested the crossover.
 	mother *population.Individual // The first parent to crossover with.
@@ -62,12 +64,13 @@ func newIsland(id int, inst *tt.Instance, toParent chan<- message, opts options.
 			toParent,
 		},
 		inst,
+		population.New(opts.MinPop, opts.MaxPop, opts.NSlaves),
 		tt.WorstValue(),
 		nil,
 	}
 
 	for child := 0; child < opts.NSlaves; child++ {
-		i.toChildren[child] = newSlave(id, child, inst, fromChildren, opts)
+		i.toChildren[child] = newSlave(id, child, inst, i.pop.SubPopulation(child), fromChildren, opts)
 	}
 
 	go i.run()
@@ -81,6 +84,8 @@ func (i *island) run() {
 
 	i.wait()
 	(<-i.fromParent).content.(waitMessage).wg.Done()
+
+	full := make(map[int]bool)
 
 	for {
 		select {
@@ -165,6 +170,19 @@ func (i *island) run() {
 
 					delete(crossovers, id)
 					child.Free()
+				}
+
+			case fullMessageType:
+				full[msg.source] = true
+
+				if len(full) == len(i.toChildren) {
+					i.pop.Select()
+
+					for child := range i.toChildren {
+						delete(full, child)
+
+						i.sendToChild(child, continueMessage{})
+					}
 				}
 			}
 		}

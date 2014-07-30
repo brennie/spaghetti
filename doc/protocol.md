@@ -28,8 +28,6 @@ The controller is only a message relayer, but it chooses when the HPGA should en
  1. Check for a message from the islands
   1. If the message is a `solutionMessage`, check if the value contained in the `solutionMessage` is better than the currently known one, update the value and solution and send a `valueMessage` to all children. Otherwise disregard the message.
 
-
-
 ### 2.2 Islands
 Islands are mostly message relayers
 
@@ -40,6 +38,7 @@ Islands are mostly message relayers
   1. If there is a `crossoverRequestMessage`, select a child at random to send an empty `individualRequestMessage`. Add the request to the queue of outstanding crossover requests.
   2. Else if there is an `individualReplyMessage`, do the crossover with the first outstanding request and send an `solutionMessage` to the origin of the first `crossoverRequestMessage`.
   3. Else if there is a `solutionMessage` from a child, determine if the value contained is better than then currently known value and forward it to the controller if so. Likewise, a `valueMessage` is sent to all children. Otherwise, ignore it.
+  4. Else if there is a `fullMesage` from a child, check if all children's populations are full. If so, do a selection and notify the children they can continue via a `continueMessage`.
 
 ### 2.3 Slaves
 First the slaves each generate a number of individuals (using the `RandomVariableOrdering()` method in the `solver/heuristics` package). Then it loops forever doing the following:
@@ -54,7 +53,7 @@ First the slaves each generate a number of individuals (using the `RandomVariabl
   2. Else if $p < P_\mathrm{xover}$, do a local crossover between two population members at random.
   3. Else do a foreign crossover by sending a `crossoverRequestMessage` to the island with a population member chosen at random.
   4. If a newly generated member has a better (distance, fitness) tuple than is currently known, update it and send a `solutionMessage` with a copy of the solution to the controlling island.
- 3. If the population has reached its maximum size, do a selection for the minimum size.
+ 3. If the population has reached its maximum size, send a `fullMessage` to its parent and wait for a `continueMessage`. Continue processing messages until it arrives.
 
 
 ## 3. Shutdown Phase

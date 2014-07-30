@@ -36,8 +36,10 @@ const (
 )
 
 const (
-	crossoverRequestMessageType  messageType = iota // A message containing a crossover request from a slave.
-	finMessageType                                  // The message saying the child has finished
+	continueMessageType          messageType = iota // A message telling a child to continue.
+	crossoverRequestMessageType                     // A message containing a crossover request from a slave.
+	finMessageType                                  // The message saying the child has finished.
+	fullMessageType                                 // The message saying the slave's population is full.
 	individualRequestMessageType                    // An island requesting a solution from a slave.
 	individualReplyMessageType                      // A slave replying to an island for a crossover.
 	orderingMessageType                             // A message containing a variable ordering.
@@ -83,6 +85,12 @@ type messageContent interface {
 	messageType() messageType
 }
 
+// A message telling a child to continue.
+type continueMessage struct{}
+
+// Get the messageType of a continueMessage.
+func (_ continueMessage) messageType() messageType { return continueMessageType }
+
 // A crossover request from a slave to an island. This is used for foreign crossovers.
 type crossoverRequestMessage struct {
 	individual *population.Individual // The individual to crossover with.
@@ -96,6 +104,12 @@ type finMessage struct{}
 
 // Get the messageType of a finMessage.
 func (_ finMessage) messageType() messageType { return finMessageType }
+
+// A message indicating that a slave's population is full.
+type fullMessage struct{}
+
+// Get the messageType of a fullMessage.
+func (_ fullMessage) messageType() messageType { return fullMessageType }
 
 // A message containing a solution and its value.
 type solutionMessage struct {

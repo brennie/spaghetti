@@ -179,10 +179,6 @@ func (s *Solution) AssignmentQuality(event int) (quality Value) {
 					count++
 				}
 			}
-
-			if count == 1 {
-				quality.Fitness++
-			}
 		}
 
 		if nEvents := len(s.attendance[student][time]); nEvents >= 2 {

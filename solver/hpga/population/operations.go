@@ -19,6 +19,7 @@ package population
 
 import (
 	"math/rand"
+	"sort"
 
 	"github.com/brennie/spaghetti/tt"
 )
@@ -88,8 +89,52 @@ func Mutate(mutant *tt.Solution) (value tt.Value) {
 }
 
 // Mutate one member of a given population and return the solution and the value
-func (p *Population) MutateOne() (mutant *tt.Solution, value tt.Value) {
+func (p *SubPopulation) MutateOne() (mutant *tt.Solution, value tt.Value) {
 	mutant = p.RemoveOne()
 	value = Mutate(mutant)
 	return
+}
+
+// Perform selection.
+func (pop *Population) Select() {
+	sort.Sort(pop.pop)
+
+	p := 0
+	i := 0
+	direction := +1
+
+	// We do snake/wraparound picking to try to make the sub-populations as
+	// well-balanced as possible. We copy into the temp arrays so that we can
+	// distribute without overwriting.
+	for pick := 0; pick < pop.count*pop.minSize; pick++ {
+		pop.temp[p][i] = pop.pop[pick]
+
+		if (p == 0 && direction == -1) || (p == pop.count-1 && direction == +1) {
+			// Switch direction at the boundaries
+			direction = -direction
+			i++
+		} else {
+			p += direction
+		}
+	}
+
+	for i := pop.count * pop.minSize; i < pop.count*pop.maxSize; i++ {
+		pop.pop[i].soln.Free()
+		pop.pop[i] = nil
+	}
+
+	// Distribute the individuals back to the sub-populations, then clear the
+	// remaining entries and reset the sub-populations lengths.
+	for p := range pop.temp {
+		for i := range pop.temp[p] {
+			pop.subPops[p].pop[i] = pop.temp[p][i]
+			pop.temp[p][i] = nil
+		}
+
+		for i := pop.minSize; i < pop.maxSize; i++ {
+			pop.subPops[p].pop[i] = nil
+		}
+
+		pop.subPops[p].length = pop.minSize
+	}
 }
