@@ -35,6 +35,7 @@ type island struct {
 	child
 	inst     *tt.Instance // The timetabling instance.
 	topValue tt.Value     // The best value seen thus far.
+	ordering []int        // The variable ordering for the GM operator.
 }
 
 type crossoverRequest struct {
@@ -62,6 +63,7 @@ func newIsland(id int, inst *tt.Instance, toParent chan<- message, opts options.
 		},
 		inst,
 		tt.WorstValue(),
+		nil,
 	}
 
 	for child := 0; child < opts.NSlaves; child++ {

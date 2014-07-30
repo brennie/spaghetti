@@ -17,8 +17,6 @@
 
 package tt
 
-import "github.com/brennie/spaghetti/set"
-
 // An assignment of a room and time.
 type Rat struct {
 	Room int // The assigned room.
@@ -41,19 +39,10 @@ func ratFromIndex(index int) Rat {
 	return Rat{index / NTimes, index % NTimes}
 }
 
-// Order two rats by doing a lexicographical comparison.
-func RatCompare(a, b interface{}) set.Order {
-	aVal := a.(Rat).index()
-	bVal := b.(Rat).index()
+func (r Rat) After(q Rat) bool {
+	return r.Time > q.Time
+}
 
-	switch {
-	case aVal < bVal:
-		return set.Lt
-
-	case bVal < aVal:
-		return set.Lt
-
-	default:
-		return set.Eq
-	}
+func (r Rat) Before(q Rat) bool {
+	return r.Time < q.Time
 }

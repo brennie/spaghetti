@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-
-	"github.com/brennie/spaghetti/set"
 )
 
 // A solution to an instance.
@@ -73,7 +71,7 @@ func (s *Solution) Assign(event int, rat Rat) {
 	//
 	// Otherwise, we just add the new entries to the attendance matrix.
 	if oldRat := s.rats[event]; oldRat.Assigned() {
-		s.events[oldRat.index()][event] = false
+		delete(s.events[oldRat.index()], event)
 
 		for student := range s.inst.events[event].students {
 			delete(s.attendance[student][oldRat.Time], event)
@@ -89,37 +87,41 @@ func (s *Solution) Assign(event int, rat Rat) {
 	s.events[ratIndex][event] = true
 }
 
-func (s *Solution) AssignAndShrink(event int, rat Rat, domains []set.Set) {
+func (s *Solution) AssignAndShrink(event int, rat Rat, domains []map[Rat]bool) {
 	s.Assign(event, rat)
 
 	// Remove the assignment from the domains of all events.
 	for other := range domains {
-		if event != other {
-			domains[other].Remove(rat)
-		}
+		delete(domains[other], rat)
 	}
 
 	// Remove the time slot from all events that share a student.
 	for exclude := range s.inst.events[event].exclude {
-		for room := 0; room < s.inst.nRooms; room++ {
-			domains[exclude].Remove(Rat{room, rat.Time})
+		if s.inst.events[exclude].times[rat.Time] {
+			for room := range s.inst.events[exclude].rooms {
+				delete(domains[exclude], Rat{room, rat.Time})
+			}
 		}
 	}
 
 	// Remove the domain entries from all events that must occur before it.
 	for before := range s.inst.events[event].before {
-		for room := 0; room < s.inst.nRooms; room++ {
+		for room := range s.inst.events[before].rooms {
 			for time := rat.Time; time < NTimes; time++ {
-				domains[before].Remove(Rat{room, time})
+				if s.inst.events[before].times[time] {
+					delete(domains[before], Rat{room, time})
+				}
 			}
 		}
 	}
 
 	// Remove the domain entries from all events that must occur after it.
 	for after := range s.inst.events[event].after {
-		for room := 0; room < s.inst.nRooms; room++ {
+		for room := range s.inst.events[after].rooms {
 			for time := 0; time <= rat.Time; time++ {
-				domains[after].Remove(Rat{room, time})
+				if s.inst.events[after].times[time] {
+					delete(domains[after], Rat{room, time})
+				}
 			}
 		}
 	}
@@ -294,7 +296,7 @@ func (s *Solution) FindImprovement() (event int, rat Rat) {
 			return
 		}
 	}
-
+	event = -1
 	return
 }
 
@@ -468,10 +470,12 @@ func (s *Solution) Violations() (violations int) {
 	// the penality is 1 per such event.
 	for eventIndex := range s.rats {
 		event := &s.inst.events[eventIndex]
+		if rat := s.rats[eventIndex]; rat.Assigned() {
+			for otherIndex := range event.after {
+				if other := s.rats[otherIndex]; other.Assigned() && !other.After(rat) {
 
-		for otherIndex := range event.after {
-			if s.rats[otherIndex].Time <= s.rats[eventIndex].Time {
-				violations++
+					violations++
+				}
 			}
 		}
 	}
