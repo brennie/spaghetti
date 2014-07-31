@@ -11,7 +11,7 @@ The communication protocol consists of three phases:
 In the set up phase, an upper bound is established for the solution by the controller and sent to all children.
 
 ### 1.1 Controller
-The controller first sends a `waitMessage` to each island, each with the same `sync.WaitGroup` to wait for population generation.
+The controller first sends a `waitMessage` to each island, each with the same `sync.WaitGroup` to wait for population generation. It also launches the hill climbing function to generate 
 
 ### 1.2 Islands
 The islands send a `waitMessage` to each slave, each with the same `sync.WaitGroup`. Then they wait for the slaves to generate their populations. The islands wait for a `waitMessage` from the controller and calls `wg.Done()` on the given `sync.WaitGroup`.
@@ -26,7 +26,10 @@ After the setup, the controller, islands, and slaves transition into the main ph
 The controller is only a message relayer, but it chooses when the HPGA should enter the shutdown phase. (TODO: determine when that should be). The controller only does the following in a loop:
 
  1. Check for a message from the islands
-  1. If the message is a `solutionMessage`, check if the value contained in the `solutionMessage` is better than the currently known one, update the value and solution and send a `valueMessage` to all children. Otherwise disregard the message.
+  1. If the message is a `solutionMessage`, check if the value contained in the `solutionMessage` is better than the currently known one, update the value and solution, and send a `valueMessage` to all children. Otherwise disregard the message.
+ 2. Else check for a message from the hill climbing operator.
+  1. If the message is a `solutionMessage`, check if the value contained in the `solutionmessage` is better than the currently known one, update the value and solution, and send a `valueMessage` to all children.
+  2. Else if the message is an `orderingMessage`, forward the `orderingMessage` to all children.
 
 ### 2.2 Islands
 Islands are mostly message relayers
@@ -34,6 +37,7 @@ Islands are mostly message relayers
  1. Check for a message from the parent.
   1. If there is a `stopMessage`, enter the shutdown phase.
   2. Else If there is a `valueMessage`, forward it to the slaves if the value is better than the currently known best.
+  3. Else if there is an `orderingMessage`, set the ordering field and signal the GM to start producing individuals.
  2. If there is no message from the parent, check for a message from the children.
   1. If there is a `crossoverMessage`, select a child at random to send an empty `crossoverMessage`. Add the request to the queue of outstanding crossover requests.
   2. Else if there is an `crossoverMessage`, do the crossover with the first outstanding request and send an `solutionMessage` to the origin of the first `crossoverMessage`.

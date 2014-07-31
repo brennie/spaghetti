@@ -25,8 +25,8 @@ import (
 )
 
 const (
-	maxTries = 100 // The maximum number of iterations
-	cutOff   = 10  // The cut off for a specific solution
+	maxTries = 1000 // The maximum number of iterations
+	cutOff   = 50   // The cut off for a specific solution
 )
 
 // An event-weight pair.
@@ -99,4 +99,21 @@ func runHillClimbing(inst *tt.Instance, report chan<- message) {
 	}
 
 	send(report, hcID, orderingMessage{order})
+}
+
+// Run the genetic modification operator for the island. The GM operator will
+// wait for requests to generate count individuals to be sent on the report
+// channel. The same slice will be used to send every report so it should not
+// be modified by the island.
+func (i *island) runGM(count int, requests <-chan bool, report chan<- bool) {
+	for {
+		if <-requests == false {
+			break
+		}
+		for individual := range i.generated {
+			i.generated[individual].Soln = heuristics.RandomAssignmentWithOrdering(i.inst.NewSolution(), i.ordering)
+			i.generated[individual].Value = i.generated[individual].Soln.Value()
+		}
+		report <- true
+	}
 }

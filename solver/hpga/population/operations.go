@@ -120,17 +120,20 @@ func (p *SubPopulation) MutateOne() (mutant *tt.Solution, value tt.Value) {
 }
 
 // Perform selection.
-func (pop *Population) Select() {
+func (pop *Population) Select(toInsert []tt.Pair) {
 	sort.Sort(pop.pop)
+
+	stopPicking := pop.count*pop.minSize - len(toInsert)
+	minSize := pop.minSize - len(toInsert)/pop.count
 
 	p := 0
 	i := 0
 	direction := +1
 
 	// We do snake/wraparound picking to try to make the sub-populations as
-	// well-balanced as possible. We copy into the temp arrays so that we can
-	// distribute without overwriting.
-	for pick := 0; pick < pop.count*pop.minSize; pick++ {
+	// well-balanced as possible. We copy into the temp arrays so that we
+	// don't have to worry about data overwriting.
+	for pick := 0; pick < stopPicking; pick++ {
 		pop.temp[p][i] = pop.pop[pick]
 
 		if (p == 0 && direction == -1) || (p == pop.count-1 && direction == +1) {
@@ -142,23 +145,31 @@ func (pop *Population) Select() {
 		}
 	}
 
-	for i := pop.count * pop.minSize; i < pop.count*pop.maxSize; i++ {
+	for i := stopPicking; i < pop.count*pop.maxSize; i++ {
 		pop.pop[i].soln.Free()
 		pop.pop[i] = nil
 	}
 
-	// Distribute the individuals back to the sub-populations, then clear the
-	// remaining entries and reset the sub-populations lengths.
+	j := 0
 	for p := range pop.temp {
-		for i := range pop.temp[p] {
+		// Distribute the picked solutions back to the sub-population.
+		for i := 0; i < minSize; i++ {
 			pop.subPops[p].pop[i] = pop.temp[p][i]
 			pop.temp[p][i] = nil
 		}
 
-		for i := pop.minSize; i < pop.maxSize; i++ {
+		// Clear the inviduals in the sub-populations that are no longer used.
+		for i := minSize; i < pop.maxSize; i++ {
 			pop.subPops[p].pop[i] = nil
 		}
 
-		pop.subPops[p].length = pop.minSize
+		pop.subPops[p].length = minSize
+
+		// Distribute an even number of elements from toInsert to the sub-
+		// population.
+		for pop.subPops[p].Len() != pop.minSize {
+			pop.subPops[p].Insert(toInsert[j].Soln, toInsert[j].Value)
+			j++
+		}
 	}
 }
