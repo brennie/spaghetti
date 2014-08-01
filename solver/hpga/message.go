@@ -20,6 +20,7 @@ package hpga
 import (
 	"log"
 	"sync"
+	"time"
 
 	"github.com/brennie/spaghetti/tt"
 )
@@ -60,7 +61,15 @@ func (m *message) messageType() messageType {
 
 // Send a message on the given channel.
 func send(c chan<- message, s int, m messageContent) {
-	c <- message{s, m}
+	select {
+	case c <- message{s, m}:
+		break
+
+	case <-time.After(10 * time.Second):
+		panic("Could not send on channel after 10s -- deadlock?")
+
+	}
+
 }
 
 // Send a message to the given child.
