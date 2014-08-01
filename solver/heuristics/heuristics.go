@@ -35,14 +35,7 @@ func RandomAssignment(soln *tt.Solution) *tt.Solution {
 
 // Follow the given variable ordering
 func RandomAssignmentWithOrdering(soln *tt.Solution, ordering []int) *tt.Solution {
-	domains := make([]map[tt.Rat]bool, soln.NEvents())
-	for event := range domains {
-		domains[event] = make(map[tt.Rat]bool)
-		for _, rat := range soln.Domains[event] {
-			domains[event][rat] = true
-		}
-	}
-
+	domains := soln.MakeShrinkableDomains()
 	unassigned := make(map[int]bool)
 
 	for _, event := range ordering {
@@ -70,8 +63,44 @@ func RandomAssignmentWithOrdering(soln *tt.Solution, ordering []int) *tt.Solutio
 		soln.Assign(event, soln.Domains[event][ratIndex])
 	}
 
+	return soln
+}
+
+func OrderedWeightedAssignment(soln *tt.Solution, varOrdering []int, valOrdering []tt.WeightedValues) *tt.Solution {
+	unassigned := make(map[int]bool)
+	domains := make([]map[tt.Rat]bool, soln.NEvents())
 	for event := range domains {
-		domains[event] = nil
+		domains[event] = make(map[tt.Rat]bool)
+		for _, rat := range soln.Domains[event] {
+			domains[event][rat] = true
+		}
+	}
+
+	for _, event := range varOrdering {
+		if len(domains[event]) == 0 {
+			unassigned[event] = true
+			continue
+		}
+
+		totalWeight := 0
+		var chosenRat tt.Rat
+		// We do a weighted reservoir sampling of size 1.
+		for _, wv := range valOrdering[event] {
+			rat := wv.Value.(tt.Rat)
+			if _, inDomain := domains[event][rat]; inDomain {
+				totalWeight += wv.Weight
+				if rand.Intn(totalWeight) < wv.Weight {
+					chosenRat = rat
+				}
+			}
+		}
+
+		soln.AssignAndShrink(event, chosenRat, domains)
+	}
+
+	for event := range unassigned {
+		ratIndex := rand.Intn(len(soln.Domains[event]))
+		soln.Assign(event, soln.Domains[event][ratIndex])
 	}
 
 	return soln

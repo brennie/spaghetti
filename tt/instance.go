@@ -30,7 +30,7 @@ type Instance struct {
 	rooms     []room    // The rooms in the instance.
 	events    []event   // The events in the instance.
 	solnPool  sync.Pool // A object pool for solutions.
-	domains   [][]Rat   // The master copy of the domains..
+	Domains   [][]Rat   // The master copy of the domains.
 }
 
 // Allocate the memory for a solution.
@@ -40,7 +40,7 @@ func (inst *Instance) allocSolution() (s *Solution) {
 		make([][45]map[int]bool, inst.nStudents),
 		make([]map[int]bool, inst.nRooms*NTimes),
 		make([]Rat, inst.nEvents),
-		inst.domains,
+		inst.Domains,
 	}
 
 	for event := range s.rats {

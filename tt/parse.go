@@ -232,7 +232,7 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 	}
 
 	// Process the attends matrix to build exclusion lists (as two events that
-	inst.domains = make([][]Rat, inst.nEvents)
+	inst.Domains = make([][]Rat, inst.nEvents)
 	for eventIndex := range inst.events {
 		event := &inst.events[eventIndex]
 
@@ -243,11 +243,11 @@ func Parse(r io.Reader) (newInst *Instance, err error) {
 			}
 		}
 
-		inst.domains[eventIndex] = make([]Rat, 0, len(event.rooms)*nTimes)
+		inst.Domains[eventIndex] = make([]Rat, 0, len(event.rooms)*nTimes)
 		for room := range event.rooms {
 			for time, ok := range event.times {
 				if ok {
-					inst.domains[eventIndex] = append(inst.domains[eventIndex], Rat{room, time})
+					inst.Domains[eventIndex] = append(inst.Domains[eventIndex], Rat{room, time})
 				}
 			}
 		}

@@ -427,6 +427,21 @@ func (s *Solution) Free() {
 	}
 }
 
+// Make domains as sets.
+func (s *Solution) MakeShrinkableDomains() (domains []map[Rat]bool) {
+	domains = make([]map[Rat]bool, s.inst.nEvents)
+
+	for event := range s.Domains {
+		domains[event] = make(map[Rat]bool)
+
+		for _, value := range s.Domains[event] {
+			domains[event][value] = true
+		}
+	}
+
+	return domains
+}
+
 // Determine the number of events involved in the solution (and problem
 // instance).
 func (s *Solution) NEvents() int {
