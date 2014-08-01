@@ -29,76 +29,90 @@ const (
 	cutOff   = 50   // The cut off for a specific solution
 )
 
-// An event-weight pair.
-type pair struct {
-	event  int // The event
-	weight int // It's weight
-}
-
-// A slice of event-weight pairs.
-type pairs []pair
-
-// Determine the length of a pairs.
-func (p *pairs) Len() int {
-	return len(*p)
-}
-
-// Determine if the weight at p[i] is less than the weight at p[j].
-func (p pairs) Less(i, j int) bool {
-	return p[i].weight < p[j].weight
-}
-
-// Swap p[i] and p[j]
-func (p *pairs) Swap(i, j int) {
-	(*p)[i], (*p)[j] = (*p)[j], (*p)[i]
-}
-
-// Run hill-climbing optimzation to build a static variable ordering heuristic for the HPGA.
+// Run hill-climbing optimzation to build a static variable ordering and
+// generate weights for each variable's values. The higher the weight of a
+// value, the better that value has been determined to be.
 func runHillClimbing(inst *tt.Instance, report chan<- message) {
-	weights := make(pairs, inst.NEvents())
-	order := make([]int, inst.NEvents())
+	varOrder := make([]int, inst.NEvents())
+	valOrder := make([]tt.WeightedValues, inst.NEvents())
+	valWeights := make([]map[tt.Rat]int, inst.NEvents())
+	varWeights := make(tt.WeightedValues, inst.NEvents())
+	varViolations := make([]int, inst.NEvents())
+	nSolutions := 0
 
-	for event := range weights {
-		weights[event].event = event
+	for event := 0; event < inst.NEvents(); event++ {
+		valOrder[event] = make(tt.WeightedValues, len(inst.Domains[event]))
+		valWeights[event] = make(map[tt.Rat]int)
+
+		for i, value := range inst.Domains[event] {
+			valOrder[event][i].Value = value
+			valOrder[event][i].Weight = 1
+			valWeights[event][value] = 1
+		}
+
+		varWeights[event].Value = event
 	}
 
-	for globalCounter := 0; globalCounter < maxTries; {
-		s := heuristics.RandomAssignment(inst.NewSolution())
+	for global := 0; global < maxTries; {
+		soln := heuristics.RandomAssignment(inst.NewSolution())
 		found := false
+		nSolutions++
 
-		for localCounter := 0; localCounter < cutOff && globalCounter < maxTries; {
-			localCounter++
-			globalCounter++
+		for local := 0; local < cutOff && global < maxTries; local++ {
+			global++
 
-			event, rat := s.FindImprovement()
-
-			if event != -1 {
-				s.Assign(event, rat)
+			if event, rat := soln.FindImprovement(); event != -1 {
+				soln.Assign(event, rat)
 			} else {
-				break // We are at a local minimum.
+				break // We've reached a local minimum
 			}
 
-			if violations := s.Violations(); violations == 0 {
-				send(report, hcID, solutionMessage{s.Assignments(), tt.Value{violations, s.Fitness()}})
+			if violations := soln.Violations(); violations == 0 {
 				found = true
+				fitness := soln.Fitness()
+				send(report, hcID, solutionMessage{soln.Assignments(), tt.Value{violations, fitness}})
 				break
 			}
 		}
 
 		if !found {
-			for event := range weights {
-				weights[event].weight += s.AssignmentViolations(event)
+			pairs := soln.ConstraintPairs()
+
+			for constraint, violations := range pairs {
+				if violations > 0 {
+					varViolations[constraint.EventA] += violations
+					varViolations[constraint.EventB] += violations
+				}
 			}
+
+			for event, count := range varViolations {
+				if count == 0 {
+					valWeights[event][soln.RatAt(event)]++
+				} else {
+					valWeights[event][soln.RatAt(event)]--
+				}
+				varWeights[event].Weight += count
+				varViolations[event] = 0
+			}
+		}
+		soln.Free()
+	}
+
+	sort.Sort(varWeights)
+	for event := range valOrder {
+		// We end up with a totally positive weight. The minimum weight is 1.
+		for i := range valOrder[event] {
+			rat := valOrder[event][i].Value.(tt.Rat)
+			weight := valWeights[event][rat]
+			valOrder[event][i].Weight += nSolutions + weight
 		}
 	}
 
-	sort.Sort(&weights)
-
-	for i := range weights {
-		order[i] = weights[i].event
+	for i := range varWeights {
+		varOrder[i] = varWeights[i].Value.(int)
 	}
 
-	send(report, hcID, orderingMessage{order})
+	send(report, hcID, orderingMessage{varOrder, valOrder})
 }
 
 // Run the genetic modification operator for the island. The GM operator will
@@ -111,7 +125,7 @@ func (i *island) runGM(count int, requests <-chan bool, report chan<- bool) {
 			break
 		}
 		for individual := range i.generated {
-			i.generated[individual].Soln = heuristics.RandomAssignmentWithOrdering(i.inst.NewSolution(), i.ordering)
+			i.generated[individual].Soln = heuristics.OrderedWeightedAssignment(i.inst.NewSolution(), i.varOrdering, i.valOrdering)
 			i.generated[individual].Value = i.generated[individual].Soln.Value()
 		}
 		report <- true

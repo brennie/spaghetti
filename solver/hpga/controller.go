@@ -121,9 +121,9 @@ msgLoop:
 				}
 
 			case orderingMessageType:
-				order := msg.content.(orderingMessage).order
+				msg.source = parentID
 				for child := range c.toChildren {
-					c.sendToChild(child, orderingMessage{order})
+					c.toChildren[child] <- msg
 				}
 			}
 

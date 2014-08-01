@@ -120,7 +120,8 @@ func (_ solutionMessage) messageType() messageType { return solutionMessageType 
 
 // A message containing a variable ordering.
 type orderingMessage struct {
-	order []int // The variable odreing
+	varOrder []int               // The variable ordering
+	valOrder []tt.WeightedValues // The value ordering.
 }
 
 // Get the messageType of an orderingMessage.
