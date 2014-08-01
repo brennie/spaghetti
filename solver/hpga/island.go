@@ -85,14 +85,21 @@ func newIsland(id int, inst *tt.Instance, toParent chan<- message, opts options.
 
 // Perform selection and notify the children that they can continue.
 func (i *island) doSelection() {
-	if i.ordering == nil {
+	if i.varOrdering == nil {
 		i.pop.Select(nil)
 	} else {
 		// Wait for the GM to generate some individuals.
 		<-i.gmRecv
 		i.pop.Select(i.generated)
-		for individual := range i.generated {
-			i.generated[individual].Soln = nil
+		for j := range i.generated {
+			if i.generated[j].Value.Less(i.topValue) {
+				i.topValue = i.generated[j].Value
+				i.sendToParent(solutionMessage{i.generated[j].Soln.Assignments(), i.topValue})
+				for child := range i.toChildren {
+					i.sendToChild(child, valueMessage{i.topValue})
+				}
+			}
+			i.generated[j].Soln = nil
 		}
 		i.gmSend <- true
 	}
