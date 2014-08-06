@@ -22,6 +22,7 @@ import (
 	"log"
 	"os"
 	"runtime/pprof"
+	"time"
 
 	"github.com/brennie/spaghetti/options"
 	"github.com/brennie/spaghetti/solver/hpga"
@@ -64,7 +65,9 @@ func Solve(opts options.SolveOptions) {
 	log.Printf("Using seed %d\n", opts.Seed)
 
 	log.Printf("Running solver on %s\n", opts.Instance)
+	start := time.Now()
 	soln, value := hpga.Run(inst, opts)
+	log.Printf("Solver finished after %.2f seconds", time.Since(start).Seconds())
 
 	log.Printf("Writing solution with value %s to file %s\n", value, opts.Solution)
 	soln.Write(solnFile)
