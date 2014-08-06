@@ -28,9 +28,14 @@ type Value struct {
 	Fitness    int // The solution fitness.
 }
 
-// Determine if we have found an ideal value.
+// Determine if the value corresponds to an ideal solution.
 func (v Value) IsIdeal() bool {
 	return v.Violations == 0 && v.Fitness == 0
+}
+
+// Determine if the value corresponds to a valid solution.
+func (v Value) IsValid() bool {
+	return v.Violations == 0
 }
 
 // Compare two values using a lexicographical compare.

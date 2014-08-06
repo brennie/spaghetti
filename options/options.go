@@ -50,18 +50,24 @@ Usage:
 
 Options:  
   -h --help         Show this information.
+  --ideal           Spaghetti will stop when it detects an ideal solution --
+                    not a valid one. Specifying --ideal with --timeout 0 may
+                    cause the program to never terminate.
   --islands <n>     Set the number of islands [default: 2].
   --minpop <n>      Set the minimum population size [default: 50].
   --maxpop <n>      Set the maximum population size [default: 75].
-  --maxprocs <n>    Set GOMAXPROCS to the given value instead of the number of CPUs.
+  --maxprocs <n>    Set GOMAXPROCS to the given value instead of the number of
+                    CPUs.
   --profile <file>  Collect profiling information in the given file. 
   --seed <seed>     Specify the seed for the random number generator.
   --slaves <n>      Set the number of slaves per island [default: 2].
-  --timeout <n>     Set the timeout time in minutes [default: 30].
+  --timeout <n>     Set the timeout time in minutes [default: 30]. A timeout of
+                    0 means that spaghetti won't stop until it finds a valid
+                    solution.
   --version         Show version information.
   --output <file>   Write the solution to the given file instead of stdout.`
 
-	version = "spaghetti v0.11"
+	version = "spaghetti v0.12"
 )
 
 type Options interface {
@@ -98,6 +104,7 @@ type SolveOptions struct {
 	Profile  interface{} // Either a string or nil. Determines if profiling should be enabled.
 	Seed     int64       // The seed for the random number generator.
 	Timeout  int         // The timeout in minutes.
+	Ideal    bool        // Should we stop when we find an ideal solution (true) or merely a valid one (false).
 }
 
 func (o SolveOptions) Mode() Mode {
@@ -185,6 +192,8 @@ func parseSolveOptions(args map[string]interface{}) (opts SolveOptions) {
 	if err != nil {
 		log.Fatalf("Invalid value for --timeout: %s\n", args["--timeout"].(string))
 	}
+
+	opts.Ideal = args["--ideal"].(bool)
 
 	if profileName := args["--profile"]; profileName != nil {
 		opts.Profile = profileName

@@ -33,6 +33,7 @@ type controller struct {
 	inst     *tt.Instance // The timetabling instance
 	topValue tt.Value     // The value of the top-valued solution.
 	top      *tt.Solution // The top-valued solution
+	ideal    bool         // Are we looking for an ideal solution?
 }
 
 // Create a new controller. There will be nIslands islands, each with nSlaves
@@ -48,6 +49,7 @@ func newController(inst *tt.Instance, opts options.SolveOptions) *controller {
 		inst,
 		tt.WorstValue(),
 		inst.NewSolution(),
+		opts.Ideal,
 	}
 
 	for i := 0; i < opts.NIslands; i++ {
@@ -68,8 +70,13 @@ func (c *controller) handleSolutionMessage(msg message) (shouldExit bool) {
 
 		log.Printf("Found new best solution: %s\n", c.topValue)
 
-		if c.topValue.IsIdeal() {
+		if c.ideal && c.topValue.IsIdeal() {
 			log.Println("Found ideal solution. Stopping...")
+			c.stopChildren()
+
+			return true
+		} else if !c.ideal && c.topValue.IsValid() {
+			log.Println("Found valid solution. Stopping...")
 			c.stopChildren()
 
 			return true
@@ -94,7 +101,14 @@ func (c *controller) run(timeoutInterval int) (*tt.Solution, tt.Value) {
 
 	log.Println("Population generation finished")
 
-	timeout := time.After(time.Duration(timeoutInterval) * time.Minute)
+	var timeout <-chan time.Time
+	if timeoutInterval == 0 {
+		// We make a channel so that we never have to worry about receiving on it.
+		timeout = make(chan time.Time)
+	} else {
+		timeout = time.After(time.Duration(timeoutInterval) * time.Minute)
+	}
+
 	signals := make(chan os.Signal)
 	signal.Notify(signals, os.Interrupt)
 
