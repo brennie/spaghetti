@@ -41,11 +41,11 @@ const (
 	crossoverMessageType                    // A message containing a crossover request from a slave.
 	finMessageType                          // The message saying the child has finished.
 	fullMessageType                         // The message saying the slave's population is full.
-	orderingMessageType                     // A message containing a variable ordering.
 	solutionMessageType                     // A message containing a solution.
 	stopMessageType                         // The message telling the children to stop.
 	valueMessageType                        // A message containing a valuation.
 	waitMessageType                         // A message containing a sync.WaitGroup
+	weightMessageType                       // A message containing variable and value weights.
 )
 
 // A message
@@ -128,13 +128,13 @@ type solutionMessage struct {
 func (_ solutionMessage) messageType() messageType { return solutionMessageType }
 
 // A message containing a variable ordering.
-type orderingMessage struct {
-	varOrder []int               // The variable ordering
-	valOrder []tt.WeightedValues // The value ordering.
+type weightMessage struct {
+	varWeights []tt.WeightedValue // The variable weights
+	valWeights []map[tt.Rat]int   // The value weights.
 }
 
 // Get the messageType of an orderingMessage.
-func (_ orderingMessage) messageType() messageType { return orderingMessageType }
+func (_ weightMessage) messageType() messageType { return weightMessageType }
 
 // A message indicating that a child should stop.
 type stopMessage struct{}

@@ -67,7 +67,7 @@ Options:
   --version         Show version information.
   --output <file>   Write the solution to the given file instead of stdout.`
 
-	version = "spaghetti v0.12"
+	version = "spaghetti v0.13"
 )
 
 type Options interface {

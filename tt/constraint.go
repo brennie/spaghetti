@@ -85,8 +85,8 @@ func (s *Solution) ConstraintPairs() (pairs map[ConstraintPair]int) {
 
 // An event-weight pair.
 type WeightedValue struct {
-	Value  interface{} // The value
-	Weight int         // It's weight
+	Event  int // The value
+	Weight int // It's weight
 }
 
 // A slice of event-weight pairs.

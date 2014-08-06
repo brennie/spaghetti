@@ -134,7 +134,7 @@ msgLoop:
 					break msgLoop
 				}
 
-			case orderingMessageType:
+			case weightMessageType:
 				msg.source = parentID
 				for child := range c.toChildren {
 					c.toChildren[child] <- msg

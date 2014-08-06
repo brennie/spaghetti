@@ -17,21 +17,7 @@
 
 package hpga
 
-import (
-	"github.com/brennie/spaghetti/tt"
-)
-
 const (
 	pMutate = 5  // The probability of a mutation is 5%
 	pLocal  = 75 // The probability of a local crossover is 75%
 )
-
-// Perform genetic mutation on the given solution, which is a more extreme
-// form of the mutate operator. This operater does unassignemnt and then re-
-// assigns to find the best overall value for the chromosome and then re-fill
-// the domain by using the most constrained ordering heuristic.
-//
-// XXX: This should actually do something.
-func gm(mutant *tt.Solution, chromosome int) {
-	//(mutant, chromosome)
-}

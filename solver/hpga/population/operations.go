@@ -119,8 +119,9 @@ func (p *SubPopulation) MutateOne() (mutant *tt.Solution, value tt.Value) {
 	return
 }
 
-// Perform selection.
-func (pop *Population) Select(toInsert []tt.Pair) {
+// Perform selection and return the best-valued solution that wasn't inserted.
+// The solution mustn't be modified.
+func (pop *Population) Select(toInsert []tt.Pair) *tt.Solution {
 	sort.Sort(pop.pop)
 
 	stopPicking := pop.count*pop.minSize - len(toInsert)
@@ -172,4 +173,6 @@ func (pop *Population) Select(toInsert []tt.Pair) {
 			j++
 		}
 	}
+
+	return pop.pop[0].soln
 }
